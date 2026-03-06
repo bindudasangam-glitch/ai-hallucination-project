@@ -1,41 +1,51 @@
 from flask import Flask, render_template, request, redirect, session
-import requests
-import os
 import sqlite3
-import base64
+import os
+import requests
 
 app = Flask(__name__)
 app.secret_key = "secret123"
 
-# -------------------------------
-# Create uploads folder
-# -------------------------------
+# -----------------------------
+# Upload folder
+# -----------------------------
 
 UPLOAD_FOLDER = "uploads"
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-# -------------------------------
-# Database path (important for Render)
-# -------------------------------
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-db_path = os.path.join(BASE_DIR, "users.db")
-
-# -------------------------------
-# Ollama API
-# -------------------------------
-
-OLLAMA_URL = "http://localhost:11434/api/generate"
-TEXT_MODEL = "llama3"
-IMAGE_MODEL = "llava"
+# -----------------------------
+# History storage
+# -----------------------------
 
 history = []
 
-# -------------------------------
-# Hallucination score
-# -------------------------------
+# -----------------------------
+# Database create
+# -----------------------------
+
+def init_db():
+
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS users(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT,
+        password TEXT
+    )
+    """)
+
+    conn.commit()
+    conn.close()
+
+init_db()
+
+# -----------------------------
+# Hallucination Score
+# -----------------------------
 
 def hallucination_score(answer):
 
@@ -53,37 +63,64 @@ def hallucination_score(answer):
     if len(answer) > 300:
         score += 5
 
+    if score == 0:
+        score = 5
+
     if score > 100:
         score = 100
 
     return score
 
+# -----------------------------
+# AI Answer (Ollama + fallback)
+# -----------------------------
 
-# -------------------------------
-# LOGIN
-# -------------------------------
+def get_ai_answer(question):
+
+    try:
+
+        url = "http://localhost:11434/api/generate"
+
+        data = {
+            "model": "llama3",
+            "prompt": question,
+            "stream": False
+        }
+
+        response = requests.post(url, json=data)
+
+        return response.json()["response"]
+
+    except:
+
+        return "AI model not available on server. This is a demo response generated without the local model."
+
+# -----------------------------
+# Login page
+# -----------------------------
 
 @app.route("/", methods=["GET","POST"])
 def login():
 
     if request.method == "POST":
 
-        email = request.form.get("email")
-        password = request.form.get("password")
+        username = request.form["username"]
+        password = request.form["password"]
 
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect("users.db")
         c = conn.cursor()
 
         c.execute(
-            "SELECT * FROM users WHERE email=? AND password=?",
-            (email,password)
+            "SELECT * FROM users WHERE username=? AND password=?",
+            (username,password)
         )
 
         user = c.fetchone()
+
         conn.close()
 
         if user:
-            session["user"] = email
+            session["user"] = username
             return redirect("/chat")
 
         else:
@@ -91,45 +128,36 @@ def login():
 
     return render_template("login.html")
 
-
-# -------------------------------
-# REGISTER
-# -------------------------------
+# -----------------------------
+# Register
+# -----------------------------
 
 @app.route("/register", methods=["GET","POST"])
 def register():
 
     if request.method == "POST":
 
-        email = request.form.get("email")
-        password = request.form.get("password")
+        username = request.form["username"]
+        password = request.form["password"]
 
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect("users.db")
         c = conn.cursor()
 
-        try:
+        c.execute(
+            "INSERT INTO users(username,password) VALUES(?,?)",
+            (username,password)
+        )
 
-            c.execute(
-                "INSERT INTO users(email,password) VALUES(?,?)",
-                (email,password)
-            )
+        conn.commit()
+        conn.close()
 
-            conn.commit()
-            conn.close()
-
-            return redirect("/")
-
-        except:
-
-            conn.close()
-            return "User already exists"
+        return redirect("/")
 
     return render_template("register.html")
 
-
-# -------------------------------
-# CHAT
-# -------------------------------
+# -----------------------------
+# Chat page
+# -----------------------------
 
 @app.route("/chat", methods=["GET","POST"])
 def chat():
@@ -137,81 +165,22 @@ def chat():
     if "user" not in session:
         return redirect("/")
 
-    question = ""
-    answer = ""
-    score = 0
+    question = None
+    answer = None
+    score = None
 
     if request.method == "POST":
 
-        question = request.form.get("question")
-        image = request.files.get("image")
+        question = request.form["question"]
 
-        # ---------------------------
-        # IMAGE QUESTION
-        # ---------------------------
+        # image upload
+        file = request.files.get("image")
 
-        if image and image.filename != "":
+        if file and file.filename != "":
+            path = os.path.join(UPLOAD_FOLDER, file.filename)
+            file.save(path)
 
-            filepath = os.path.join(UPLOAD_FOLDER, image.filename)
-            image.save(filepath)
-
-            with open(filepath, "rb") as img_file:
-                image_base64 = base64.b64encode(img_file.read()).decode("utf-8")
-
-            prompt = "Explain what is in this image."
-
-            try:
-
-                r = requests.post(
-                    OLLAMA_URL,
-                    json={
-                        "model": IMAGE_MODEL,
-                        "prompt": prompt,
-                        "images": [image_base64],
-                        "stream": False
-                    }
-                )
-
-                result = r.json()
-                answer = result.get("response","Image AI failed")
-
-            except:
-                answer = "Error connecting to AI model"
-
-        # ---------------------------
-        # TEXT QUESTION
-        # ---------------------------
-
-        elif question:
-
-            prompt = f"""
-You are an intelligent AI assistant.
-Answer clearly and correctly.
-
-Question: {question}
-Answer:
-"""
-
-            try:
-
-                r = requests.post(
-                    OLLAMA_URL,
-                    json={
-                        "model": TEXT_MODEL,
-                        "prompt": prompt,
-                        "stream": False
-                    }
-                )
-
-                result = r.json()
-                answer = result.get("response","AI failed")
-
-            except:
-                answer = "Error connecting to AI model"
-
-        # ---------------------------
-        # Hallucination score
-        # ---------------------------
+        answer = get_ai_answer(question)
 
         score = hallucination_score(answer)
 
@@ -230,10 +199,9 @@ Answer:
         history=history
     )
 
-
-# -------------------------------
-# HISTORY OPEN
-# -------------------------------
+# -----------------------------
+# History open
+# -----------------------------
 
 @app.route("/history/<int:id>")
 def open_history(id):
@@ -254,21 +222,20 @@ def open_history(id):
         history=history
     )
 
-
-# -------------------------------
-# LOGOUT
-# -------------------------------
+# -----------------------------
+# Logout
+# -----------------------------
 
 @app.route("/logout")
 def logout():
 
-    session.clear()
+    session.pop("user",None)
+
     return redirect("/")
 
-
-# -------------------------------
-# RUN
-# -------------------------------
+# -----------------------------
+# Run
+# -----------------------------
 
 if __name__ == "__main__":
     app.run(debug=True)
