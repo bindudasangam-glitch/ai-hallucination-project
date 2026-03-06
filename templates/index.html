@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>AI Question Answer</title>
+
+<style>
+
+body{
+margin:0;
+font-family:Arial;
+background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+color:white;
+}
+
+/* layout */
+
+.container{
+display:flex;
+height:100vh;
+}
+
+/* sidebar */
+
+.sidebar{
+width:260px;
+background:#021c2d;
+padding:20px;
+overflow:auto;
+}
+
+.sidebar h2{
+margin-bottom:20px;
+}
+
+/* history item */
+
+.history-item{
+background:#2c3e50;
+padding:10px;
+margin-bottom:10px;
+border-radius:6px;
+cursor:pointer;
+color:white;
+}
+
+.history-item:hover{
+background:#34495e;
+}
+
+/* main */
+
+.main{
+flex:1;
+padding:40px;
+overflow:auto;
+}
+
+.title{
+font-size:32px;
+font-weight:bold;
+margin-bottom:30px;
+}
+
+/* form */
+
+form{
+display:flex;
+gap:10px;
+margin-bottom:20px;
+}
+
+input[type=text]{
+flex:1;
+padding:12px;
+border:none;
+border-radius:6px;
+}
+
+input[type=file]{
+color:white;
+}
+
+button{
+padding:12px 20px;
+background:#38bdf8;
+border:none;
+border-radius:6px;
+color:white;
+cursor:pointer;
+}
+
+button:hover{
+background:#0ea5e9;
+}
+
+/* cards */
+
+.card{
+background:#2c3e50;
+padding:20px;
+border-radius:10px;
+margin-top:20px;
+}
+
+/* hallucination score */
+
+.score-box{
+margin-top:10px;
+padding:10px;
+background:#0ea5e9;
+color:white;
+border-radius:6px;
+width:220px;
+text-align:center;
+font-weight:bold;
+}
+
+/* logout */
+
+.logout{
+margin-top:20px;
+display:inline-block;
+color:white;
+text-decoration:none;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<!-- Sidebar -->
+
+<div class="sidebar">
+
+<h2>History</h2>
+
+{% for h in history %}
+
+<a href="/history/{{h.id}}" style="text-decoration:none">
+
+<div class="history-item">
+
+{{h.question}}
+
+</div>
+
+</a>
+
+{% endfor %}
+
+</div>
+
+<!-- Main -->
+
+<div class="main">
+
+<div class="title">AI Question Answer</div>
+
+<!-- FORM -->
+
+<form action="/chat" method="POST" enctype="multipart/form-data">
+
+<input type="text" name="question" placeholder="Ask question">
+
+<input type="file" name="image">
+
+<button type="submit">Ask</button>
+
+</form>
+
+<!-- QUESTION -->
+
+{% if question %}
+
+<div class="card">
+
+<h3>Question</h3>
+
+<p>{{question}}</p>
+
+</div>
+
+{% endif %}
+
+<!-- ANSWER -->
+
+{% if answer %}
+
+<div class="card">
+
+<h3>Answer</h3>
+
+<p>{{answer}}</p>
+
+<div class="score-box">
+
+Hallucination Score: {{score}} %
+
+</div>
+
+</div>
+
+{% endif %}
+
+<a class="logout" href="/logout">Logout</a>
+
+</div>
+
+</div>
+
+</body>
+</html>
