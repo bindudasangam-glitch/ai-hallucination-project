@@ -14,14 +14,10 @@ background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
 color:white;
 }
 
-/* Layout */
-
 .container{
 display:flex;
 height:100vh;
 }
-
-/* Sidebar */
 
 .sidebar{
 width:260px;
@@ -34,14 +30,11 @@ overflow:auto;
 margin-bottom:20px;
 }
 
-/* History items */
-
 .history-item{
 background:#2c3e50;
 padding:10px;
 margin-bottom:10px;
 border-radius:6px;
-cursor:pointer;
 color:white;
 }
 
@@ -49,21 +42,15 @@ color:white;
 background:#34495e;
 }
 
-/* Main area */
-
 .main{
 flex:1;
 padding:40px;
-overflow:auto;
 }
 
 .title{
 font-size:32px;
-font-weight:bold;
 margin-bottom:30px;
 }
-
-/* Form */
 
 form{
 display:flex;
@@ -78,24 +65,13 @@ border:none;
 border-radius:6px;
 }
 
-input[type=file]{
-color:white;
-}
-
 button{
 padding:12px 20px;
 background:#38bdf8;
 border:none;
 border-radius:6px;
 color:white;
-cursor:pointer;
 }
-
-button:hover{
-background:#0ea5e9;
-}
-
-/* Cards */
 
 .card{
 background:#2c3e50;
@@ -104,33 +80,16 @@ border-radius:10px;
 margin-top:20px;
 }
 
-/* Hallucination score */
-
 .score-box{
-margin-top:15px;
-padding:12px;
+margin-top:10px;
+padding:10px;
+background:#16a34a;
+color:white;
 border-radius:6px;
 width:220px;
 text-align:center;
 font-weight:bold;
-color:white;
 }
-
-/* Score colors */
-
-.low{
-background:#16a34a;
-}
-
-.medium{
-background:#eab308;
-}
-
-.high{
-background:#dc2626;
-}
-
-/* Logout */
 
 .logout{
 margin-top:20px;
@@ -147,18 +106,18 @@ text-decoration:none;
 
 <div class="container">
 
-<!-- Sidebar -->
-
 <div class="sidebar">
 
 <h2>History</h2>
 
 {% for h in history %}
 
-<a href="/history/{{h.id}}" style="text-decoration:none">
+<a href="/history/{{ loop.index0 }}" style="text-decoration:none">
 
 <div class="history-item">
+
 {{h.question}}
+
 </div>
 
 </a>
@@ -166,9 +125,6 @@ text-decoration:none;
 {% endfor %}
 
 </div>
-
-
-<!-- Main content -->
 
 <div class="main">
 
@@ -196,7 +152,6 @@ text-decoration:none;
 
 {% endif %}
 
-
 {% if answer %}
 
 <div class="card">
@@ -205,15 +160,7 @@ text-decoration:none;
 
 <p>{{answer}}</p>
 
-<div class="score-box
-{% if score <= 30 %}
-low
-{% elif score <= 60 %}
-medium
-{% else %}
-high
-{% endif %}
-">
+<div class="score-box">
 
 Hallucination Score: {{score}} %
 

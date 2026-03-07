@@ -13,9 +13,9 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 history = []
 
-# -----------------------
+# -------------------------
 # DATABASE
-# -----------------------
+# -------------------------
 
 def init_db():
 
@@ -35,9 +35,9 @@ def init_db():
 
 init_db()
 
-# -----------------------
+# -------------------------
 # IMAGE ANSWER
-# -----------------------
+# -------------------------
 
 def image_answer(filename):
 
@@ -50,40 +50,49 @@ def image_answer(filename):
         return "The uploaded image looks like a banana."
 
     elif "fruit" in name:
-        return "The uploaded image appears to be a fruit."
+        return "The uploaded image appears to contain fruits."
 
     else:
-        return f"The uploaded image file is '{filename}'. Image recognition is simulated in this demo."
+        return f"The uploaded image '{filename}' was received. Image recognition is simulated in this demo."
 
-# -----------------------
+# -------------------------
 # TEXT ANSWER
-# -----------------------
+# -------------------------
 
 def get_ai_answer(question):
 
     q = question.lower()
 
+    # programming
     if "java" in q:
-        return "Java is a high level object oriented programming language."
+        return "Java is a high level object oriented programming language used to build applications."
 
-    elif "python" in q:
-        return "Python is a popular programming language used for AI and data science."
+    if "python" in q:
+        return "Python is a popular programming language widely used in AI, data science and automation."
 
-    elif "data structure" in q:
-        return "A data structure is a way of organizing data efficiently."
+    # education
+    if "data structure" in q:
+        return "A data structure is a way of organizing and storing data efficiently."
 
-    elif "cricket" in q:
-        return "Cricket is a bat and ball sport played between two teams."
+    if "algorithm" in q:
+        return "An algorithm is a step by step procedure used to solve a problem."
 
-    elif "prime minister of india" in q:
+    # sports
+    if "cricket" in q:
+        return "Cricket is a bat and ball sport played between two teams of eleven players."
+
+    # politics
+    if "prime minister of india" in q:
         return "The Prime Minister of India is Narendra Modi."
 
-    else:
-        return f"This is a demo AI response for the question: {question}"
+    if "president of india" in q:
+        return "The President of India is Droupadi Murmu."
 
-# -----------------------
+    return f"This is a demo AI generated response for the question: {question}"
+
+# -------------------------
 # HALLUCINATION SCORE
-# -----------------------
+# -------------------------
 
 def hallucination_score(answer):
 
@@ -96,9 +105,9 @@ def hallucination_score(answer):
 
     return min(score,100)
 
-# -----------------------
+# -------------------------
 # LOGIN
-# -----------------------
+# -------------------------
 
 @app.route("/", methods=["GET","POST"])
 def login():
@@ -117,6 +126,7 @@ def login():
         )
 
         user = c.fetchone()
+
         conn.close()
 
         if user:
@@ -127,9 +137,9 @@ def login():
 
     return render_template("login.html")
 
-# -----------------------
+# -------------------------
 # REGISTER
-# -----------------------
+# -------------------------
 
 @app.route("/register", methods=["GET","POST"])
 def register():
@@ -154,9 +164,9 @@ def register():
 
     return render_template("register.html")
 
-# -----------------------
+# -------------------------
 # CHAT
-# -----------------------
+# -------------------------
 
 @app.route("/chat", methods=["GET","POST"])
 def chat():
@@ -171,10 +181,9 @@ def chat():
     if request.method == "POST":
 
         question = request.form.get("question")
-
         file = request.files.get("image")
 
-        # IMAGE UPLOAD
+        # IMAGE QUESTION
         if file and file.filename != "":
 
             filename = file.filename
@@ -190,7 +199,6 @@ def chat():
 
         score = hallucination_score(answer)
 
-        # STORE HISTORY
         history.append({
             "question": question,
             "answer": answer,
@@ -205,15 +213,18 @@ def chat():
         history=history
     )
 
-# -----------------------
-# HISTORY OPEN
-# -----------------------
+# -------------------------
+# HISTORY
+# -------------------------
 
 @app.route("/history/<int:id>")
 def open_history(id):
 
     if "user" not in session:
         return redirect("/")
+
+    if id < 0 or id >= len(history):
+        return redirect("/chat")
 
     item = history[id]
 
@@ -225,9 +236,9 @@ def open_history(id):
         history=history
     )
 
-# -----------------------
+# -------------------------
 # LOGOUT
-# -----------------------
+# -------------------------
 
 @app.route("/logout")
 def logout():
@@ -236,7 +247,7 @@ def logout():
 
     return redirect("/")
 
-# -----------------------
+# -------------------------
 
 if __name__ == "__main__":
     app.run(debug=True)
