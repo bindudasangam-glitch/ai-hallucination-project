@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, redirect, session
-import sqlite3
-import os
 import random
+import os
 
 app = Flask(__name__)
 app.secret_key = "secret123"
@@ -13,27 +12,6 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 history = []
 
-# -------------------------
-# DATABASE
-# -------------------------
-
-def init_db():
-
-    conn = sqlite3.connect("users.db")
-    c = conn.cursor()
-
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS users(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT,
-        password TEXT
-    )
-    """)
-
-    conn.commit()
-    conn.close()
-
-init_db()
 
 # -------------------------
 # IMAGE ANSWER
@@ -44,51 +22,99 @@ def image_answer(filename):
     name = filename.lower()
 
     if "apple" in name:
-        return "The uploaded image looks like an apple."
+        return "The uploaded image appears to contain an apple."
 
     elif "banana" in name:
-        return "The uploaded image looks like a banana."
+        return "The uploaded image appears to contain a banana."
 
     elif "fruit" in name:
-        return "The uploaded image appears to contain fruits."
+        return "The uploaded image seems related to fruits."
+
+    elif "dog" in name:
+        return "The uploaded image appears to contain a dog."
+
+    elif "cat" in name:
+        return "The uploaded image appears to contain a cat."
 
     else:
         return f"The uploaded image '{filename}' was received. Image recognition is simulated in this demo."
 
+
 # -------------------------
-# TEXT ANSWER
+# TEXT AI ANSWER
 # -------------------------
 
 def get_ai_answer(question):
 
     q = question.lower()
 
-    # programming
+    # ------------------
+    # MATH
+    # ------------------
+
+    try:
+        if any(op in q for op in ["+","-","*","/"]):
+            result = eval(q)
+            return f"The correct answer is {result}."
+    except:
+        pass
+
+    # ------------------
+    # PROGRAMMING
+    # ------------------
+
     if "java" in q:
-        return "Java is a high level object oriented programming language used to build applications."
+        return "Java is a high level object oriented programming language used to build enterprise and web applications."
 
     if "python" in q:
-        return "Python is a popular programming language widely used in AI, data science and automation."
+        return "Python is a powerful programming language widely used in AI, data science and automation."
 
-    # education
+    # ------------------
+    # EDUCATION
+    # ------------------
+
     if "data structure" in q:
-        return "A data structure is a way of organizing and storing data efficiently."
+        return "A data structure is a way of organizing and storing data so that it can be accessed efficiently."
 
     if "algorithm" in q:
-        return "An algorithm is a step by step procedure used to solve a problem."
+        return "An algorithm is a step by step procedure used to solve a computational problem."
 
-    # sports
+    # ------------------
+    # SPORTS
+    # ------------------
+
     if "cricket" in q:
         return "Cricket is a bat and ball sport played between two teams of eleven players."
 
-    # politics
+    if "football" in q:
+        return "Football is a team sport played between two teams using a spherical ball."
+
+    # ------------------
+    # POLITICS
+    # ------------------
+
     if "prime minister of india" in q:
         return "The Prime Minister of India is Narendra Modi."
 
     if "president of india" in q:
         return "The President of India is Droupadi Murmu."
 
-    return f"This is a demo AI generated response for the question: {question}"
+    # ------------------
+    # GENERAL KNOWLEDGE
+    # ------------------
+
+    if "capital of india" in q:
+        return "The capital of India is New Delhi."
+
+    if "who invented computer" in q:
+        return "Charles Babbage is considered the father of the computer."
+
+    # ------------------
+    # DEFAULT
+    # ------------------
+
+    return f"This system generated an AI response related to: {question}"
+
 
 # -------------------------
 # HALLUCINATION SCORE
@@ -96,14 +122,10 @@ def get_ai_answer(question):
 
 def hallucination_score(answer):
 
-    score = 10
+    score = random.randint(5,50)
 
-    if len(answer) < 50:
-        score += 20
+    return score
 
-    score += random.randint(0,10)
-
-    return min(score,100)
 
 # -------------------------
 # LOGIN
@@ -117,19 +139,8 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
 
-        conn = sqlite3.connect("users.db")
-        c = conn.cursor()
+        if username == "admin" and password == "admin":
 
-        c.execute(
-            "SELECT * FROM users WHERE username=? AND password=?",
-            (username,password)
-        )
-
-        user = c.fetchone()
-
-        conn.close()
-
-        if user:
             session["user"] = username
             return redirect("/chat")
 
@@ -137,32 +148,6 @@ def login():
 
     return render_template("login.html")
 
-# -------------------------
-# REGISTER
-# -------------------------
-
-@app.route("/register", methods=["GET","POST"])
-def register():
-
-    if request.method == "POST":
-
-        username = request.form["username"]
-        password = request.form["password"]
-
-        conn = sqlite3.connect("users.db")
-        c = conn.cursor()
-
-        c.execute(
-            "INSERT INTO users(username,password) VALUES(?,?)",
-            (username,password)
-        )
-
-        conn.commit()
-        conn.close()
-
-        return redirect("/")
-
-    return render_template("register.html")
 
 # -------------------------
 # CHAT
@@ -183,7 +168,7 @@ def chat():
         question = request.form.get("question")
         file = request.files.get("image")
 
-        # IMAGE QUESTION
+        # IMAGE
         if file and file.filename != "":
 
             filename = file.filename
@@ -213,6 +198,7 @@ def chat():
         history=history
     )
 
+
 # -------------------------
 # HISTORY
 # -------------------------
@@ -220,10 +206,7 @@ def chat():
 @app.route("/history/<int:id>")
 def open_history(id):
 
-    if "user" not in session:
-        return redirect("/")
-
-    if id < 0 or id >= len(history):
+    if id >= len(history):
         return redirect("/chat")
 
     item = history[id]
@@ -236,6 +219,7 @@ def open_history(id):
         history=history
     )
 
+
 # -------------------------
 # LOGOUT
 # -------------------------
@@ -244,10 +228,8 @@ def open_history(id):
 def logout():
 
     session.pop("user",None)
-
     return redirect("/")
 
-# -------------------------
 
 if __name__ == "__main__":
     app.run(debug=True)
