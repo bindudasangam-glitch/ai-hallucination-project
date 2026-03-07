@@ -1,8 +1,7 @@
 from flask import Flask, render_template, request, redirect, session
 import os
 import random
-import ast
-import operator as op
+import re
 
 app = Flask(__name__)
 app.secret_key = "secret123"
@@ -14,108 +13,136 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 history = []
 
-# -------------------------
-# SAFE MATH EVALUATION
-# -------------------------
-
-operators = {
-    ast.Add: op.add,
-    ast.Sub: op.sub,
-    ast.Mult: op.mul,
-    ast.Div: op.truediv
-}
-
-def eval_expr(expr):
-
-    try:
-        node = ast.parse(expr, mode='eval').body
-
-        if isinstance(node, ast.BinOp):
-            return operators[type(node.op)](
-                eval_expr_node(node.left),
-                eval_expr_node(node.right)
-            )
-    except:
-        return None
-
-def eval_expr_node(node):
-
-    if isinstance(node, ast.Num):
-        return node.n
-
-    if isinstance(node, ast.BinOp):
-        return operators[type(node.op)](
-            eval_expr_node(node.left),
-            eval_expr_node(node.right)
-        )
-
-# -------------------------
+# -----------------------------
 # IMAGE ANSWER
-# -------------------------
+# -----------------------------
 
 def image_answer(filename):
 
-    return f"The uploaded image '{filename}' was successfully received. Image recognition is simulated in this demo system."
+    name = filename.lower()
 
-# -------------------------
-# TEXT AI ANSWER
-# -------------------------
+    if "apple" in name:
+        return "The uploaded image appears to contain an apple."
+
+    elif "banana" in name:
+        return "The uploaded image appears to contain a banana."
+
+    elif "fruit" in name:
+        return "The uploaded image seems to contain fruits."
+
+    elif "dog" in name:
+        return "The uploaded image appears to contain a dog."
+
+    elif "cat" in name:
+        return "The uploaded image appears to contain a cat."
+
+    return f"The uploaded image '{filename}' was successfully received. Image recognition is simulated in this demo."
+
+# -----------------------------
+# AI ANSWER LOGIC
+# -----------------------------
 
 def get_ai_answer(question):
 
-    q = question.lower().strip()
+    q = question.lower()
 
-    # try math calculation
+    # -------------------------
+    # EQUATION CHECK
+    # -------------------------
+
+    if "=" in q and any(op in q for op in ["+","-","*","/"]):
+
+        try:
+
+            left,right = q.split("=")
+
+            left_val = eval(left.strip())
+
+            right_val = eval(re.findall(r'\d+', right)[0])
+
+            if left_val == right_val:
+                return f"Yes, the equation {left_val} = {right_val} is correct."
+
+            else:
+                return f"No, the equation is incorrect. The correct answer is {left_val}."
+
+        except:
+            pass
+
+
+    # -------------------------
+    # SIMPLE MATH
+    # -------------------------
+
     try:
-        cleaned = q.replace(" ","")
 
-        if any(op in cleaned for op in ["+","-","*","/"]):
-            result = eval(cleaned)
+        expr = re.findall(r'[0-9+\-*/]+', q)
+
+        if expr:
+
+            result = eval(expr[0])
+
             return f"The correct answer is {result}."
+
     except:
         pass
 
-    # programming
-    if "python" in q:
-        return "Python is a popular programming language widely used for AI, data science, and web development."
+
+    # -------------------------
+    # PROGRAMMING
+    # -------------------------
 
     if "java" in q:
-        return "Java is an object oriented programming language commonly used for enterprise and mobile applications."
+        return "Java is a high level object oriented programming language used to build enterprise applications."
 
-    # education
+    if "python" in q:
+        return "Python is a popular programming language widely used in AI, data science and automation."
+
+    # -------------------------
+    # EDUCATION
+    # -------------------------
+
     if "data structure" in q:
-        return "A data structure is a method of organizing data efficiently for processing."
+        return "A data structure is a way of organizing and storing data efficiently."
 
     if "algorithm" in q:
         return "An algorithm is a step by step procedure used to solve computational problems."
 
-    # sports
+    # -------------------------
+    # SPORTS
+    # -------------------------
+
     if "cricket" in q:
         return "Cricket is a bat and ball sport played between two teams of eleven players."
 
     if "football" in q:
-        return "Football is a team sport played with a spherical ball between two teams."
+        return "Football is a team sport played between two teams using a spherical ball."
 
-    # politics
+    # -------------------------
+    # POLITICS
+    # -------------------------
+
     if "prime minister of india" in q:
         return "The Prime Minister of India is Narendra Modi."
 
     if "president of india" in q:
         return "The President of India is Droupadi Murmu."
 
-    # general knowledge
+    # -------------------------
+    # GENERAL KNOWLEDGE
+    # -------------------------
+
     if "capital of india" in q:
         return "The capital of India is New Delhi."
 
     if "who invented computer" in q:
         return "Charles Babbage is considered the father of the computer."
 
-    # default answer
-    return f"The question '{question}' relates to general knowledge. This system provides a simulated AI generated response."
+    return f"This system generated an AI response related to: {question}"
 
-# -------------------------
+# -----------------------------
 # HALLUCINATION SCORE
-# -------------------------
+# -----------------------------
 
 def hallucination_score(answer):
 
@@ -123,9 +150,9 @@ def hallucination_score(answer):
 
     return score
 
-# -------------------------
+# -----------------------------
 # LOGIN
-# -------------------------
+# -----------------------------
 
 @app.route("/", methods=["GET","POST"])
 def login():
@@ -144,9 +171,9 @@ def login():
 
     return render_template("login.html")
 
-# -------------------------
+# -----------------------------
 # CHAT
-# -------------------------
+# -----------------------------
 
 @app.route("/chat", methods=["GET","POST"])
 def chat():
@@ -192,9 +219,9 @@ def chat():
         history=history
     )
 
-# -------------------------
+# -----------------------------
 # HISTORY
-# -------------------------
+# -----------------------------
 
 @app.route("/history/<int:id>")
 def open_history(id):
@@ -212,18 +239,17 @@ def open_history(id):
         history=history
     )
 
-# -------------------------
+# -----------------------------
 # LOGOUT
-# -------------------------
+# -----------------------------
 
 @app.route("/logout")
 def logout():
 
     session.pop("user",None)
-
     return redirect("/")
 
-# -------------------------
+# -----------------------------
 
 if __name__=="__main__":
     app.run(debug=True)
