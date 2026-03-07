@@ -37,20 +37,26 @@ def init_db():
 init_db()
 
 # -------------------------
-# AI ANSWER FUNCTION
+# AI ANSWER
 # -------------------------
 
-def get_ai_answer(question):
+def get_ai_answer(question, image_name=None):
 
     q = question.lower()
 
     # -------------------------
-    # MATH QUESTIONS
+    # IMAGE RESPONSE
+    # -------------------------
+
+    if image_name:
+        return f"The uploaded image file name is '{image_name}'. Image processing is simulated in this demo system."
+
+    # -------------------------
+    # MATH
     # -------------------------
 
     try:
 
-        # remove spaces
         exp = question.replace(" ", "")
 
         if "=" in exp:
@@ -74,6 +80,15 @@ def get_ai_answer(question):
     except:
         pass
 
+    # -------------------------
+    # PROGRAMMING
+    # -------------------------
+
+    if "java" in q:
+        return "Java is a high level object oriented programming language used for building applications."
+
+    if "python" in q:
+        return "Python is a popular programming language widely used in AI, data science and automation."
 
     # -------------------------
     # SPORTS
@@ -83,7 +98,7 @@ def get_ai_answer(question):
         return "Cricket is a bat and ball sport played between two teams of eleven players."
 
     if "football" in q:
-        return "Football is a team sport played with a spherical ball between two teams."
+        return "Football is a team sport played between two teams."
 
     # -------------------------
     # POLITICS
@@ -103,27 +118,7 @@ def get_ai_answer(question):
         return "A data structure is a way of organizing and storing data efficiently."
 
     if "algorithm" in q:
-        return "An algorithm is a step by step process used to solve a problem."
-
-    # -------------------------
-    # PROGRAMMING
-    # -------------------------
-
-    if "java" in q:
-        return "Java is a high level object oriented programming language."
-
-    if "python" in q:
-        return "Python is a powerful programming language widely used in AI and data science."
-
-    # -------------------------
-    # AI
-    # -------------------------
-
-    if "artificial intelligence" in q or "ai" in q:
-        return "Artificial Intelligence is a branch of computer science that enables machines to simulate human intelligence."
-
-    if "machine learning" in q:
-        return "Machine Learning is a subset of Artificial Intelligence where computers learn from data."
+        return "An algorithm is a step-by-step procedure used to solve a problem."
 
     # -------------------------
     # GENERAL KNOWLEDGE
@@ -139,7 +134,7 @@ def get_ai_answer(question):
     # DEFAULT
     # -------------------------
 
-    return f"This system provides a general AI response related to the question: {question}"
+    return f"This system generated a general response related to: {question}"
 
 # -------------------------
 # HALLUCINATION SCORE
@@ -160,9 +155,9 @@ def hallucination_score(answer):
             score += 20
 
     if len(answer) < 40:
-        score += 40
+        score += 35
     elif len(answer) < 100:
-        score += 25
+        score += 20
     else:
         score += 10
 
@@ -248,21 +243,24 @@ def chat():
 
     if request.method == "POST":
 
-        question = request.form["question"]
+        question = request.form.get("question","")
 
         file = request.files.get("image")
 
+        image_name = None
+
         if file and file.filename != "":
-            path = os.path.join(UPLOAD_FOLDER, file.filename)
+            image_name = file.filename
+            path = os.path.join(UPLOAD_FOLDER, image_name)
             file.save(path)
 
-        answer = get_ai_answer(question)
+        answer = get_ai_answer(question, image_name)
 
         score = hallucination_score(answer)
 
         history.insert(0,{
             "id": len(history),
-            "question": question,
+            "question": question if question else image_name,
             "answer": answer,
             "score": score
         })
