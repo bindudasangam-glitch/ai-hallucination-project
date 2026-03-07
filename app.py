@@ -13,96 +13,105 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 history = []
 
-# ---------------------------
+# -----------------------------
 # IMAGE ANSWER
-# ---------------------------
+# -----------------------------
 
 def image_answer(filename):
 
     return f"The uploaded image '{filename}' was successfully received. Image recognition is simulated in this demo."
 
-# ---------------------------
+# -----------------------------
+# HALLUCINATION SCORE
+# -----------------------------
+
+def hallucination_score():
+
+    score = random.randint(5,80)
+
+    if score < 30:
+        level = "low"
+
+    elif score < 60:
+        level = "medium"
+
+    else:
+        level = "high"
+
+    return score, level
+
+# -----------------------------
 # AI ANSWER LOGIC
-# ---------------------------
+# -----------------------------
 
 def get_ai_answer(question):
 
     q = question.lower()
 
-    # ----------------------
+    # -------------------------
     # EQUATION CHECK
-    # ----------------------
+    # -------------------------
 
-    match = re.search(r'(\d+[\+\-\*/]\d+)\s*=\s*(\d+)', q)
+    equation = re.search(r'(\d+[\+\-\*/]\d+)\s*=\s*(\d+)', q)
 
-    if match:
+    if equation:
 
-        left = match.group(1)
-        right = int(match.group(2))
+        left = equation.group(1)
+        right = int(equation.group(2))
 
-        try:
+        correct = eval(left)
 
-            correct = eval(left)
+        if correct == right:
+            return f"Yes, the equation {left} = {right} is correct."
 
-            if correct == right:
-                return f"Yes, the equation {left} = {right} is correct."
+        else:
+            return f"No, the equation is incorrect. The correct answer is {correct}."
 
-            else:
-                return f"No, the equation is incorrect. The correct answer is {correct}."
-
-        except:
-            pass
-
-    # ----------------------
+    # -------------------------
     # SIMPLE MATH
-    # ----------------------
+    # -------------------------
 
-    math_match = re.search(r'(\d+[\+\-\*/]\d+)', q)
+    math = re.search(r'(\d+[\+\-\*/]\d+)', q)
 
-    if math_match:
+    if math:
 
-        try:
+        result = eval(math.group(1))
 
-            result = eval(math_match.group(1))
+        return f"The correct answer is {result}."
 
-            return f"The correct answer is {result}."
-
-        except:
-            pass
-
-    # ----------------------
+    # -------------------------
     # PROGRAMMING
-    # ----------------------
+    # -------------------------
 
     if "java" in q:
-        return "Java is a high level object oriented programming language used for building applications."
+        return "Java is a high level object oriented programming language used to build applications."
 
     if "python" in q:
-        return "Python is widely used for AI, data science and web development."
+        return "Python is widely used for AI, machine learning and data science."
 
-    # ----------------------
+    # -------------------------
     # EDUCATION
-    # ----------------------
+    # -------------------------
 
     if "data structure" in q:
-        return "A data structure is a method of organizing and storing data efficiently."
+        return "A data structure is a way of organizing and storing data efficiently."
 
     if "algorithm" in q:
-        return "An algorithm is a step by step procedure used to solve a problem."
+        return "An algorithm is a step by step procedure used to solve problems."
 
-    # ----------------------
+    # -------------------------
     # SPORTS
-    # ----------------------
+    # -------------------------
 
     if "cricket" in q:
-        return "Cricket is a bat and ball sport played between two teams."
+        return "Cricket is a bat and ball sport played between two teams of eleven players."
 
     if "football" in q:
-        return "Football is a popular team sport played worldwide."
+        return "Football is a team sport played with a spherical ball."
 
-    # ----------------------
+    # -------------------------
     # POLITICS
-    # ----------------------
+    # -------------------------
 
     if "prime minister of india" in q:
         return "The Prime Minister of India is Narendra Modi."
@@ -110,23 +119,15 @@ def get_ai_answer(question):
     if "president of india" in q:
         return "The President of India is Droupadi Murmu."
 
-    # ----------------------
-    # DEFAULT
-    # ----------------------
+    # -------------------------
+    # GENERAL DEFAULT
+    # -------------------------
 
     return f"This system generated an AI response related to: {question}"
 
-# ---------------------------
-# HALLUCINATION SCORE
-# ---------------------------
-
-def hallucination_score():
-
-    return random.randint(5,50)
-
-# ---------------------------
+# -----------------------------
 # LOGIN
-# ---------------------------
+# -----------------------------
 
 @app.route("/", methods=["GET","POST"])
 def login():
@@ -145,9 +146,9 @@ def login():
 
     return render_template("login.html")
 
-# ---------------------------
+# -----------------------------
 # CHAT
-# ---------------------------
+# -----------------------------
 
 @app.route("/chat", methods=["GET","POST"])
 def chat():
@@ -158,6 +159,7 @@ def chat():
     question=None
     answer=None
     score=None
+    level=None
 
     if request.method == "POST":
 
@@ -177,12 +179,13 @@ def chat():
 
             answer=get_ai_answer(question)
 
-        score=hallucination_score()
+        score, level = hallucination_score()
 
         history.append({
             "question":question,
             "answer":answer,
-            "score":score
+            "score":score,
+            "level":level
         })
 
     return render_template(
@@ -190,12 +193,13 @@ def chat():
         question=question,
         answer=answer,
         score=score,
+        level=level,
         history=history
     )
 
-# ---------------------------
+# -----------------------------
 # HISTORY
-# ---------------------------
+# -----------------------------
 
 @app.route("/history/<int:id>")
 def open_history(id):
@@ -210,20 +214,19 @@ def open_history(id):
         question=item["question"],
         answer=item["answer"],
         score=item["score"],
+        level=item["level"],
         history=history
     )
 
-# ---------------------------
+# -----------------------------
 # LOGOUT
-# ---------------------------
+# -----------------------------
 
 @app.route("/logout")
 def logout():
 
     session.pop("user",None)
     return redirect("/")
-
-# ---------------------------
 
 if __name__=="__main__":
     app.run(debug=True)

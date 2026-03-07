@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html>
-
 <head>
 
 <title>AI Question Answer</title>
@@ -71,6 +70,11 @@ background:#38bdf8;
 border:none;
 border-radius:6px;
 color:white;
+cursor:pointer;
+}
+
+button:hover{
+background:#0ea5e9;
 }
 
 .card{
@@ -81,14 +85,26 @@ margin-top:20px;
 }
 
 .score-box{
-margin-top:10px;
+margin-top:15px;
 padding:10px;
-background:#16a34a;
-color:white;
 border-radius:6px;
 width:220px;
 text-align:center;
 font-weight:bold;
+}
+
+/* hallucination colors */
+
+.low{
+background:green;
+}
+
+.medium{
+background:orange;
+}
+
+.high{
+background:red;
 }
 
 .logout{
@@ -105,6 +121,8 @@ text-decoration:none;
 <body>
 
 <div class="container">
+
+<!-- Sidebar -->
 
 <div class="sidebar">
 
@@ -125,6 +143,9 @@ text-decoration:none;
 {% endfor %}
 
 </div>
+
+
+<!-- Main Area -->
 
 <div class="main">
 
@@ -152,6 +173,7 @@ text-decoration:none;
 
 {% endif %}
 
+
 {% if answer %}
 
 <div class="card">
@@ -160,7 +182,7 @@ text-decoration:none;
 
 <p>{{answer}}</p>
 
-<div class="score-box">
+<div class="score-box {{level}}">
 
 Hallucination Score: {{score}} %
 
