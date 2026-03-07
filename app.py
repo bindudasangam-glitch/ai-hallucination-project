@@ -37,19 +37,31 @@ def init_db():
 init_db()
 
 # -------------------------
-# AI ANSWER
+# IMAGE ANSWER
 # -------------------------
 
-def get_ai_answer(question, image_name=None):
+def image_answer(filename):
+
+    name = filename.lower()
+
+    if "apple" in name:
+        return "The uploaded image appears to be an apple."
+
+    if "banana" in name:
+        return "The uploaded image appears to be a banana."
+
+    if "fruit" in name:
+        return "The uploaded image seems related to fruits."
+
+    return f"The uploaded image file is '{filename}'. Image recognition is simulated in this demo."
+
+# -------------------------
+# TEXT AI ANSWER
+# -------------------------
+
+def get_ai_answer(question):
 
     q = question.lower()
-
-    # -------------------------
-    # IMAGE RESPONSE
-    # -------------------------
-
-    if image_name:
-        return f"The uploaded image file name is '{image_name}'. Image processing is simulated in this demo system."
 
     # -------------------------
     # MATH
@@ -85,20 +97,20 @@ def get_ai_answer(question, image_name=None):
     # -------------------------
 
     if "java" in q:
-        return "Java is a high level object oriented programming language used for building applications."
+        return "Java is a high level object oriented programming language."
 
     if "python" in q:
-        return "Python is a popular programming language widely used in AI, data science and automation."
+        return "Python is widely used for AI, automation and data science."
 
     # -------------------------
     # SPORTS
     # -------------------------
 
     if "cricket" in q:
-        return "Cricket is a bat and ball sport played between two teams of eleven players."
+        return "Cricket is a bat and ball sport played between two teams."
 
     if "football" in q:
-        return "Football is a team sport played between two teams."
+        return "Football is a team sport played with a spherical ball."
 
     # -------------------------
     # POLITICS
@@ -115,26 +127,19 @@ def get_ai_answer(question, image_name=None):
     # -------------------------
 
     if "data structure" in q:
-        return "A data structure is a way of organizing and storing data efficiently."
+        return "A data structure is a method of organizing and storing data efficiently."
 
     if "algorithm" in q:
-        return "An algorithm is a step-by-step procedure used to solve a problem."
+        return "An algorithm is a step-by-step procedure to solve a problem."
 
     # -------------------------
-    # GENERAL KNOWLEDGE
+    # GENERAL
     # -------------------------
 
     if "capital of india" in q:
         return "The capital of India is New Delhi."
 
-    if "who invented computer" in q:
-        return "Charles Babbage is known as the father of the computer."
-
-    # -------------------------
-    # DEFAULT
-    # -------------------------
-
-    return f"This system generated a general response related to: {question}"
+    return f"This system generated a general AI response related to: {question}"
 
 # -------------------------
 # HALLUCINATION SCORE
@@ -142,24 +147,12 @@ def get_ai_answer(question, image_name=None):
 
 def hallucination_score(answer):
 
-    keywords = [
-        "maybe","might","possibly",
-        "uncertain","not sure",
-        "likely","probably","guess"
-    ]
-
-    score = 0
-
-    for k in keywords:
-        if k in answer.lower():
-            score += 20
+    score = 10
 
     if len(answer) < 40:
-        score += 35
+        score += 30
     elif len(answer) < 100:
-        score += 20
-    else:
-        score += 10
+        score += 15
 
     score += random.randint(0,10)
 
@@ -247,20 +240,25 @@ def chat():
 
         file = request.files.get("image")
 
-        image_name = None
-
         if file and file.filename != "":
-            image_name = file.filename
-            path = os.path.join(UPLOAD_FOLDER, image_name)
+
+            filename = file.filename
+            path = os.path.join(UPLOAD_FOLDER, filename)
             file.save(path)
 
-        answer = get_ai_answer(question, image_name)
+            question = f"Image uploaded: {filename}"
+
+            answer = image_answer(filename)
+
+        else:
+
+            answer = get_ai_answer(question)
 
         score = hallucination_score(answer)
 
-        history.insert(0,{
+        history.append({
             "id": len(history),
-            "question": question if question else image_name,
+            "question": question,
             "answer": answer,
             "score": score
         })
@@ -283,9 +281,6 @@ def open_history(id):
     if "user" not in session:
         return redirect("/")
 
-    if id >= len(history):
-        return redirect("/chat")
-
     item = history[id]
 
     return render_template(
@@ -304,7 +299,6 @@ def open_history(id):
 def logout():
 
     session.pop("user",None)
-
     return redirect("/")
 
 # -------------------------
