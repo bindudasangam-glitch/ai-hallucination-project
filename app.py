@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, session
 import sqlite3
 import os
+import random
 
 app = Flask(__name__)
 app.secret_key = "secret123"
@@ -15,13 +16,13 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 # -------------------------
-# History list
+# History storage
 # -------------------------
 
 history = []
 
 # -------------------------
-# Create database
+# Database setup
 # -------------------------
 
 def init_db():
@@ -43,33 +44,58 @@ def init_db():
 init_db()
 
 # -------------------------
-# Demo AI Answer Generator
+# AI Answer Generator
 # -------------------------
 
 def get_ai_answer(question):
 
     q = question.lower()
 
-    if "java" in q:
-        return "Java is a high level object oriented programming language used to build web, mobile and enterprise applications."
+    # SPORTS
+    if "cricket" in q:
+        return "Cricket is a popular bat and ball sport played between two teams of eleven players each."
+
+    elif "football" in q:
+        return "Football is a team sport played with a spherical ball between two teams of eleven players."
+
+    # POLITICS
+    elif "prime minister of india" in q:
+        return "The Prime Minister of India is Narendra Modi."
+
+    elif "president of india" in q:
+        return "The President of India is Droupadi Murmu."
+
+    # EDUCATION
+    elif "data structure" in q:
+        return "A data structure is a way of organizing and storing data efficiently for processing and retrieval."
+
+    elif "algorithm" in q:
+        return "An algorithm is a step by step procedure used to solve a problem or perform a task."
+
+    # PROGRAMMING
+    elif "java" in q:
+        return "Java is a high level object oriented programming language used to develop web and enterprise applications."
 
     elif "python" in q:
-        return "Python is a popular programming language known for its simple syntax and powerful libraries used in AI, data science and web development."
+        return "Python is a powerful programming language widely used in AI, data science, automation and web development."
 
-    elif "data structure" in q:
-        return "A data structure is a way of organizing and storing data so that it can be accessed and modified efficiently."
-
-    elif "ai" in q or "artificial intelligence" in q:
-        return "Artificial Intelligence is a field of computer science that enables machines to simulate human intelligence and perform tasks such as learning and decision making."
+    # AI
+    elif "artificial intelligence" in q or "ai" in q:
+        return "Artificial Intelligence is a branch of computer science that enables machines to perform tasks that normally require human intelligence."
 
     elif "machine learning" in q:
-        return "Machine Learning is a subset of Artificial Intelligence that allows computers to learn patterns from data and make predictions."
+        return "Machine Learning is a subset of Artificial Intelligence that allows systems to learn patterns from data and make predictions."
 
-    elif "hello" in q or "hi" in q:
-        return "Hello! I am your AI assistant. Ask me any question."
+    # GENERAL KNOWLEDGE
+    elif "capital of india" in q:
+        return "The capital of India is New Delhi."
 
+    elif "who invented computer" in q:
+        return "Charles Babbage is considered the father of the computer."
+
+    # DEFAULT
     else:
-        return "This is a demo AI generated answer for the question: " + question
+        return f"Based on general knowledge, the answer related to '{question}' involves concepts that require further detailed explanation."
 
 # -------------------------
 # Hallucination Score
@@ -89,11 +115,16 @@ def hallucination_score(answer):
         if k in answer.lower():
             score += 20
 
-    if len(answer) > 250:
+    # Answer length impact
+    if len(answer) < 50:
+        score += 40
+    elif len(answer) < 120:
+        score += 25
+    else:
         score += 10
 
-    if score == 0:
-        score = 10
+    # Random factor
+    score += random.randint(0,15)
 
     if score > 100:
         score = 100
@@ -160,7 +191,7 @@ def register():
     return render_template("register.html")
 
 # -------------------------
-# Chat Page
+# Chat
 # -------------------------
 
 @app.route("/chat", methods=["GET","POST"])
@@ -177,7 +208,6 @@ def chat():
 
         question = request.form["question"]
 
-        # image upload
         file = request.files.get("image")
 
         if file and file.filename != "":
@@ -188,7 +218,7 @@ def chat():
 
         score = hallucination_score(answer)
 
-        history.append({
+        history.insert(0,{
             "id": len(history),
             "question": question,
             "answer": answer,
@@ -204,7 +234,7 @@ def chat():
     )
 
 # -------------------------
-# History open
+# History
 # -------------------------
 
 @app.route("/history/<int:id>")
@@ -238,7 +268,7 @@ def logout():
     return redirect("/")
 
 # -------------------------
-# Run app
+# Run
 # -------------------------
 
 if __name__ == "__main__":
