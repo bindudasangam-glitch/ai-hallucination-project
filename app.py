@@ -14,9 +14,9 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 history = []
 
-# -----------------------
+# -------------------------
 # DATABASE
-# -----------------------
+# -------------------------
 
 def init_db():
 
@@ -36,31 +36,48 @@ def init_db():
 
 init_db()
 
-# -----------------------
-# AI ANSWER SYSTEM
-# -----------------------
+# -------------------------
+# AI ANSWER FUNCTION
+# -------------------------
 
 def get_ai_answer(question):
 
     q = question.lower()
 
-    # -----------------------
-    # MATH DETECTION
-    # -----------------------
+    # -------------------------
+    # MATH QUESTIONS
+    # -------------------------
 
     try:
-        math_expr = re.findall(r"[0-9\+\-\*/\.\(\)]+", question)
 
-        if math_expr:
-            result = eval(math_expr[0])
-            return f"The correct answer is {result}."
+        # remove spaces
+        exp = question.replace(" ", "")
+
+        if "=" in exp:
+
+            left, right = exp.split("=")
+
+            result = eval(left)
+
+            if str(result) == right:
+                return f"Yes, it is correct. {left} = {result}"
+
+            else:
+                return f"No, it is incorrect. The correct answer is {left} = {result}"
+
+        elif any(op in exp for op in ["+","-","*","/"]):
+
+            result = eval(exp)
+
+            return f"The answer is {result}"
 
     except:
         pass
 
-    # -----------------------
+
+    # -------------------------
     # SPORTS
-    # -----------------------
+    # -------------------------
 
     if "cricket" in q:
         return "Cricket is a bat and ball sport played between two teams of eleven players."
@@ -68,9 +85,9 @@ def get_ai_answer(question):
     if "football" in q:
         return "Football is a team sport played with a spherical ball between two teams."
 
-    # -----------------------
+    # -------------------------
     # POLITICS
-    # -----------------------
+    # -------------------------
 
     if "prime minister of india" in q:
         return "The Prime Minister of India is Narendra Modi."
@@ -78,39 +95,39 @@ def get_ai_answer(question):
     if "president of india" in q:
         return "The President of India is Droupadi Murmu."
 
-    # -----------------------
+    # -------------------------
     # EDUCATION
-    # -----------------------
+    # -------------------------
 
     if "data structure" in q:
         return "A data structure is a way of organizing and storing data efficiently."
 
     if "algorithm" in q:
-        return "An algorithm is a step-by-step procedure used to solve a problem."
+        return "An algorithm is a step by step process used to solve a problem."
 
-    # -----------------------
+    # -------------------------
     # PROGRAMMING
-    # -----------------------
+    # -------------------------
 
     if "java" in q:
-        return "Java is a high level object oriented programming language used to develop applications."
+        return "Java is a high level object oriented programming language."
 
     if "python" in q:
-        return "Python is a powerful programming language widely used in AI, automation and data science."
+        return "Python is a powerful programming language widely used in AI and data science."
 
-    # -----------------------
+    # -------------------------
     # AI
-    # -----------------------
+    # -------------------------
 
     if "artificial intelligence" in q or "ai" in q:
         return "Artificial Intelligence is a branch of computer science that enables machines to simulate human intelligence."
 
     if "machine learning" in q:
-        return "Machine Learning is a subset of Artificial Intelligence where systems learn patterns from data."
+        return "Machine Learning is a subset of Artificial Intelligence where computers learn from data."
 
-    # -----------------------
+    # -------------------------
     # GENERAL KNOWLEDGE
-    # -----------------------
+    # -------------------------
 
     if "capital of india" in q:
         return "The capital of India is New Delhi."
@@ -118,15 +135,15 @@ def get_ai_answer(question):
     if "who invented computer" in q:
         return "Charles Babbage is known as the father of the computer."
 
-    # -----------------------
+    # -------------------------
     # DEFAULT
-    # -----------------------
+    # -------------------------
 
-    return f"The question '{question}' relates to a topic that requires detailed explanation. This system provides a general AI-based response."
+    return f"This system provides a general AI response related to the question: {question}"
 
-# -----------------------
+# -------------------------
 # HALLUCINATION SCORE
-# -----------------------
+# -------------------------
 
 def hallucination_score(answer):
 
@@ -149,16 +166,16 @@ def hallucination_score(answer):
     else:
         score += 10
 
-    score += random.randint(0,15)
+    score += random.randint(0,10)
 
     if score > 100:
         score = 100
 
     return score
 
-# -----------------------
+# -------------------------
 # LOGIN
-# -----------------------
+# -------------------------
 
 @app.route("/", methods=["GET","POST"])
 def login():
@@ -188,9 +205,9 @@ def login():
 
     return render_template("login.html")
 
-# -----------------------
+# -------------------------
 # REGISTER
-# -----------------------
+# -------------------------
 
 @app.route("/register", methods=["GET","POST"])
 def register():
@@ -215,9 +232,9 @@ def register():
 
     return render_template("register.html")
 
-# -----------------------
+# -------------------------
 # CHAT
-# -----------------------
+# -------------------------
 
 @app.route("/chat", methods=["GET","POST"])
 def chat():
@@ -258,9 +275,9 @@ def chat():
         history=history
     )
 
-# -----------------------
+# -------------------------
 # HISTORY
-# -----------------------
+# -------------------------
 
 @app.route("/history/<int:id>")
 def open_history(id):
@@ -281,17 +298,18 @@ def open_history(id):
         history=history
     )
 
-# -----------------------
+# -------------------------
 # LOGOUT
-# -----------------------
+# -------------------------
 
 @app.route("/logout")
 def logout():
 
     session.pop("user",None)
+
     return redirect("/")
 
-# -----------------------
+# -------------------------
 
 if __name__ == "__main__":
     app.run(debug=True)
