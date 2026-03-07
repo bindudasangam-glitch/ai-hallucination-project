@@ -14,14 +14,14 @@ background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
 color:white;
 }
 
-/* layout */
+/* Layout */
 
 .container{
 display:flex;
 height:100vh;
 }
 
-/* sidebar */
+/* Sidebar */
 
 .sidebar{
 width:260px;
@@ -34,7 +34,7 @@ overflow:auto;
 margin-bottom:20px;
 }
 
-/* history item */
+/* History items */
 
 .history-item{
 background:#2c3e50;
@@ -49,7 +49,7 @@ color:white;
 background:#34495e;
 }
 
-/* main */
+/* Main area */
 
 .main{
 flex:1;
@@ -63,7 +63,7 @@ font-weight:bold;
 margin-bottom:30px;
 }
 
-/* form */
+/* Form */
 
 form{
 display:flex;
@@ -95,7 +95,7 @@ button:hover{
 background:#0ea5e9;
 }
 
-/* cards */
+/* Cards */
 
 .card{
 background:#2c3e50;
@@ -104,20 +104,33 @@ border-radius:10px;
 margin-top:20px;
 }
 
-/* hallucination score */
+/* Hallucination score */
 
 .score-box{
-margin-top:10px;
-padding:10px;
-background:#0ea5e9;
-color:white;
+margin-top:15px;
+padding:12px;
 border-radius:6px;
 width:220px;
 text-align:center;
 font-weight:bold;
+color:white;
 }
 
-/* logout */
+/* Score colors */
+
+.low{
+background:#16a34a;
+}
+
+.medium{
+background:#eab308;
+}
+
+.high{
+background:#dc2626;
+}
+
+/* Logout */
 
 .logout{
 margin-top:20px;
@@ -145,9 +158,7 @@ text-decoration:none;
 <a href="/history/{{h.id}}" style="text-decoration:none">
 
 <div class="history-item">
-
 {{h.question}}
-
 </div>
 
 </a>
@@ -156,13 +167,12 @@ text-decoration:none;
 
 </div>
 
-<!-- Main -->
+
+<!-- Main content -->
 
 <div class="main">
 
 <div class="title">AI Question Answer</div>
-
-<!-- FORM -->
 
 <form action="/chat" method="POST" enctype="multipart/form-data">
 
@@ -173,8 +183,6 @@ text-decoration:none;
 <button type="submit">Ask</button>
 
 </form>
-
-<!-- QUESTION -->
 
 {% if question %}
 
@@ -188,7 +196,6 @@ text-decoration:none;
 
 {% endif %}
 
-<!-- ANSWER -->
 
 {% if answer %}
 
@@ -198,7 +205,15 @@ text-decoration:none;
 
 <p>{{answer}}</p>
 
-<div class="score-box">
+<div class="score-box
+{% if score <= 30 %}
+low
+{% elif score <= 60 %}
+medium
+{% else %}
+high
+{% endif %}
+">
 
 Hallucination Score: {{score}} %
 

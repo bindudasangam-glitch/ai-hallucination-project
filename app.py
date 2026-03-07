@@ -2,28 +2,21 @@ from flask import Flask, render_template, request, redirect, session
 import sqlite3
 import os
 import random
+import re
 
 app = Flask(__name__)
 app.secret_key = "secret123"
-
-# -------------------------
-# Upload folder
-# -------------------------
 
 UPLOAD_FOLDER = "uploads"
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-# -------------------------
-# History storage
-# -------------------------
-
 history = []
 
-# -------------------------
-# Database setup
-# -------------------------
+# -----------------------
+# DATABASE
+# -----------------------
 
 def init_db():
 
@@ -43,63 +36,97 @@ def init_db():
 
 init_db()
 
-# -------------------------
-# AI Answer Generator
-# -------------------------
+# -----------------------
+# AI ANSWER SYSTEM
+# -----------------------
 
 def get_ai_answer(question):
 
     q = question.lower()
 
+    # -----------------------
+    # MATH DETECTION
+    # -----------------------
+
+    try:
+        math_expr = re.findall(r"[0-9\+\-\*/\.\(\)]+", question)
+
+        if math_expr:
+            result = eval(math_expr[0])
+            return f"The correct answer is {result}."
+
+    except:
+        pass
+
+    # -----------------------
     # SPORTS
+    # -----------------------
+
     if "cricket" in q:
-        return "Cricket is a popular bat and ball sport played between two teams of eleven players each."
+        return "Cricket is a bat and ball sport played between two teams of eleven players."
 
-    elif "football" in q:
-        return "Football is a team sport played with a spherical ball between two teams of eleven players."
+    if "football" in q:
+        return "Football is a team sport played with a spherical ball between two teams."
 
+    # -----------------------
     # POLITICS
-    elif "prime minister of india" in q:
+    # -----------------------
+
+    if "prime minister of india" in q:
         return "The Prime Minister of India is Narendra Modi."
 
-    elif "president of india" in q:
+    if "president of india" in q:
         return "The President of India is Droupadi Murmu."
 
+    # -----------------------
     # EDUCATION
-    elif "data structure" in q:
-        return "A data structure is a way of organizing and storing data efficiently for processing and retrieval."
+    # -----------------------
 
-    elif "algorithm" in q:
-        return "An algorithm is a step by step procedure used to solve a problem or perform a task."
+    if "data structure" in q:
+        return "A data structure is a way of organizing and storing data efficiently."
 
+    if "algorithm" in q:
+        return "An algorithm is a step-by-step procedure used to solve a problem."
+
+    # -----------------------
     # PROGRAMMING
-    elif "java" in q:
-        return "Java is a high level object oriented programming language used to develop web and enterprise applications."
+    # -----------------------
 
-    elif "python" in q:
-        return "Python is a powerful programming language widely used in AI, data science, automation and web development."
+    if "java" in q:
+        return "Java is a high level object oriented programming language used to develop applications."
 
+    if "python" in q:
+        return "Python is a powerful programming language widely used in AI, automation and data science."
+
+    # -----------------------
     # AI
-    elif "artificial intelligence" in q or "ai" in q:
-        return "Artificial Intelligence is a branch of computer science that enables machines to perform tasks that normally require human intelligence."
+    # -----------------------
 
-    elif "machine learning" in q:
-        return "Machine Learning is a subset of Artificial Intelligence that allows systems to learn patterns from data and make predictions."
+    if "artificial intelligence" in q or "ai" in q:
+        return "Artificial Intelligence is a branch of computer science that enables machines to simulate human intelligence."
 
+    if "machine learning" in q:
+        return "Machine Learning is a subset of Artificial Intelligence where systems learn patterns from data."
+
+    # -----------------------
     # GENERAL KNOWLEDGE
-    elif "capital of india" in q:
+    # -----------------------
+
+    if "capital of india" in q:
         return "The capital of India is New Delhi."
 
-    elif "who invented computer" in q:
-        return "Charles Babbage is considered the father of the computer."
+    if "who invented computer" in q:
+        return "Charles Babbage is known as the father of the computer."
 
+    # -----------------------
     # DEFAULT
-    else:
-        return f"Based on general knowledge, the answer related to '{question}' involves concepts that require further detailed explanation."
+    # -----------------------
 
-# -------------------------
-# Hallucination Score
-# -------------------------
+    return f"The question '{question}' relates to a topic that requires detailed explanation. This system provides a general AI-based response."
+
+# -----------------------
+# HALLUCINATION SCORE
+# -----------------------
 
 def hallucination_score(answer):
 
@@ -115,15 +142,13 @@ def hallucination_score(answer):
         if k in answer.lower():
             score += 20
 
-    # Answer length impact
-    if len(answer) < 50:
+    if len(answer) < 40:
         score += 40
-    elif len(answer) < 120:
+    elif len(answer) < 100:
         score += 25
     else:
         score += 10
 
-    # Random factor
     score += random.randint(0,15)
 
     if score > 100:
@@ -131,9 +156,9 @@ def hallucination_score(answer):
 
     return score
 
-# -------------------------
-# Login
-# -------------------------
+# -----------------------
+# LOGIN
+# -----------------------
 
 @app.route("/", methods=["GET","POST"])
 def login():
@@ -158,14 +183,14 @@ def login():
         if user:
             session["user"] = username
             return redirect("/chat")
-        else:
-            return "Invalid login"
+
+        return "Invalid login"
 
     return render_template("login.html")
 
-# -------------------------
-# Register
-# -------------------------
+# -----------------------
+# REGISTER
+# -----------------------
 
 @app.route("/register", methods=["GET","POST"])
 def register():
@@ -190,9 +215,9 @@ def register():
 
     return render_template("register.html")
 
-# -------------------------
-# Chat
-# -------------------------
+# -----------------------
+# CHAT
+# -----------------------
 
 @app.route("/chat", methods=["GET","POST"])
 def chat():
@@ -233,9 +258,9 @@ def chat():
         history=history
     )
 
-# -------------------------
-# History
-# -------------------------
+# -----------------------
+# HISTORY
+# -----------------------
 
 @app.route("/history/<int:id>")
 def open_history(id):
@@ -256,20 +281,17 @@ def open_history(id):
         history=history
     )
 
-# -------------------------
-# Logout
-# -------------------------
+# -----------------------
+# LOGOUT
+# -----------------------
 
 @app.route("/logout")
 def logout():
 
     session.pop("user",None)
-
     return redirect("/")
 
-# -------------------------
-# Run
-# -------------------------
+# -----------------------
 
 if __name__ == "__main__":
     app.run(debug=True)
