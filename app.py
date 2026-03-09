@@ -1,9 +1,7 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect
 import os
 import random
 import re
-import pytesseract
-from PIL import Image
 
 app = Flask(__name__)
 
@@ -14,14 +12,13 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 history = []
 
-
 # ---------------- AI ANSWER FUNCTION ---------------- #
 
 def get_ai_answer(question):
 
     q = question.lower()
 
-    # -------- MATH DETECTION -------- #
+    # --------- MATH DETECTION ---------
 
     match = re.search(r'(\d+)\s*([\+\-\*\/])\s*(\d+)', q)
 
@@ -46,19 +43,25 @@ def get_ai_answer(question):
             return f"No, the equation is incorrect. The correct answer is {correct}.", random.randint(60,80)
 
 
-    # -------- GK / GENERAL -------- #
+    # --------- INDIA NATIONAL SYMBOLS ---------
 
-    if "national animal" in q and "india" in q:
+    if "national" in q and "animal" in q and "india" in q:
         return "The national animal of India is the Bengal Tiger.", random.randint(5,15)
 
-    if "national bird" in q and "india" in q:
+    if "national" in q and "bird" in q and "india" in q:
         return "The national bird of India is the Indian Peacock.", random.randint(5,15)
 
-    if "capital" in q and "india" in q:
-        return "The capital of India is New Delhi.", random.randint(5,15)
+    if "national" in q and "flower" in q and "india" in q:
+        return "The national flower of India is the Lotus.", random.randint(5,15)
+
+    if "national" in q and "fruit" in q and "india" in q:
+        return "The national fruit of India is the Mango.", random.randint(5,15)
+
+    if "national" in q and "tree" in q and "india" in q:
+        return "The national tree of India is the Banyan Tree.", random.randint(5,15)
 
 
-    # -------- EDUCATION -------- #
+    # --------- EDUCATION / PROGRAMMING ---------
 
     if "java" in q:
         return "Java is a high level object oriented programming language used for web and enterprise applications.", random.randint(10,20)
@@ -69,20 +72,29 @@ def get_ai_answer(question):
     if "data structure" in q:
         return "A data structure is a way of organizing and storing data efficiently.", random.randint(10,20)
 
-    if "oop" in q:
-        return "Object Oriented Programming (OOP) is a programming paradigm based on objects, classes, inheritance, encapsulation and polymorphism.", random.randint(10,20)
+    if "algorithm" in q:
+        return "An algorithm is a step-by-step procedure used to solve a problem.", random.randint(10,20)
 
 
-    # -------- SPORTS -------- #
+    # --------- GK ---------
+
+    if "capital" in q and "india" in q:
+        return "The capital of India is New Delhi.", random.randint(5,15)
+
+    if "largest ocean" in q:
+        return "The Pacific Ocean is the largest ocean on Earth.", random.randint(5,15)
+
+
+    # --------- SPORTS ---------
 
     if "cricket" in q:
-        return "Cricket is a bat and ball sport played between two teams of eleven players.", random.randint(10,20)
+        return "Cricket is a bat-and-ball sport played between two teams of eleven players.", random.randint(10,20)
 
     if "football" in q:
         return "Football is a team sport played with a spherical ball between two teams.", random.randint(10,20)
 
 
-    # -------- POLITICS -------- #
+    # --------- POLITICS ---------
 
     if "prime minister" in q and "india" in q:
         return "The Prime Minister of India is Narendra Modi.", random.randint(40,60)
@@ -91,9 +103,24 @@ def get_ai_answer(question):
         return "The President of India is Droupadi Murmu.", random.randint(40,60)
 
 
-    # -------- DEFAULT -------- #
+    # --------- HEALTH ---------
 
-    return f"Based on available knowledge, the answer related to '{question}' requires further explanation.", random.randint(15,35)
+    if "health" in q:
+        return "Health refers to the overall physical, mental and social well-being of a person.", random.randint(10,25)
+
+
+    # --------- ANIMALS / BIRDS ---------
+
+    if "animal" in q:
+        return "Animals are living organisms that belong to the kingdom Animalia.", random.randint(10,25)
+
+    if "bird" in q:
+        return "Birds are warm-blooded vertebrates characterized by feathers and wings.", random.randint(10,25)
+
+
+    # --------- DEFAULT ---------
+
+    return f"This system generated an AI response related to: {question}", random.randint(15,35)
 
 
 
@@ -110,10 +137,15 @@ def get_level(score):
 
 
 
-# ---------------- MAIN ROUTE ---------------- #
+# ---------------- ROUTES ---------------- #
 
-@app.route("/", methods=["GET","POST"])
+@app.route("/")
 def home():
+    return redirect("/chat")
+
+
+@app.route("/chat", methods=["GET","POST"])
+def chat():
 
     question = None
     answer = None
@@ -126,32 +158,25 @@ def home():
 
         files = request.files.getlist("image")
 
-        # -------- IMAGE OCR -------- #
+        # -------- MULTIPLE IMAGE -------- #
 
         if files and files[0].filename != "":
 
-            detected_text = ""
+            filenames = []
 
             for file in files[:5]:
 
                 filename = file.filename
                 path = os.path.join(UPLOAD_FOLDER, filename)
-
                 file.save(path)
 
-                img = Image.open(path)
+                filenames.append(filename)
 
-                text = pytesseract.image_to_string(img)
+            question = "Images uploaded: " + ", ".join(filenames)
 
-                detected_text += text + " "
+            answer = f"{len(filenames)} images uploaded successfully. Image recognition is simulated in this demo."
 
-            question = detected_text.strip()
-
-            if question == "":
-                answer = "No readable text found in the image."
-                score = random.randint(20,40)
-            else:
-                answer, score = get_ai_answer(question)
+            score = random.randint(10,40)
 
         else:
 
@@ -166,6 +191,7 @@ def home():
             "level":level
         })
 
+
     return render_template("index.html",
                            question=question,
                            answer=answer,
@@ -173,6 +199,25 @@ def home():
                            level=level,
                            history=history)
 
+
+
+@app.route("/history/<int:id>")
+def history_page(id):
+
+    item = history[id]
+
+    return render_template("index.html",
+                           question=item["question"],
+                           answer=item["answer"],
+                           score=item["score"],
+                           level=item["level"],
+                           history=history)
+
+
+
+@app.route("/logout")
+def logout():
+    return redirect("/chat")
 
 
 if __name__ == "__main__":
