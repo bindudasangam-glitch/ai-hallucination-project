@@ -91,15 +91,17 @@ def get_wiki_answer(q):
 
     try:
 
-        search_results = wikipedia.search(q)
+        results = wikipedia.search(q)
 
-        if search_results:
+        if results:
 
-            page = wikipedia.page(search_results[0])
+            title = results[0]
 
-            summary = wikipedia.summary(search_results[0], sentences=3)
+            summary = wikipedia.summary(title, sentences=2)
 
-            answer = summary.split(".")[0]
+            first_sentence = summary.split(".")[0]
+
+            answer = f"{title} — {first_sentence}"
 
             return answer, summary
 
@@ -114,7 +116,7 @@ if question:
 
     st.session_state.conversation.append(("User",question))
 
-    # math check
+    # check math
     math_answer = solve_math(question)
 
     if math_answer:
