@@ -1,6 +1,5 @@
 streamlit
-transformers>=4.40.0
 sentence-transformers
-torch
 wikipedia
 pillow
+torch
