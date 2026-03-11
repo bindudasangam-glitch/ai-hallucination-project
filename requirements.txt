@@ -1,6 +1,5 @@
 streamlit
 sentence-transformers
-transformers
 wikipedia
 torch
 pillow

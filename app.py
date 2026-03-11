@@ -2,7 +2,6 @@ import streamlit as st
 import wikipedia
 import re
 from sentence_transformers import SentenceTransformer, util
-from transformers import pipeline
 from PIL import Image
 
 st.set_page_config(page_title="AI Hallucination Detection System", layout="wide")
@@ -20,21 +19,13 @@ if "history" not in st.session_state:
 if "question_input" not in st.session_state:
     st.session_state.question_input = ""
 
-# ---------------- MODELS ----------------
+# ---------------- MODEL ----------------
 
 @st.cache_resource
-def load_models():
+def load_model():
+    return SentenceTransformer("all-MiniLM-L6-v2")
 
-    embed_model = SentenceTransformer("all-MiniLM-L6-v2")
-
-    image_model = pipeline(
-        "image-to-text",
-        model="Salesforce/blip-image-captioning-base"
-    )
-
-    return embed_model, image_model
-
-embed_model, image_model = load_models()
+embed_model = load_model()
 
 # ---------------- SIDEBAR ----------------
 
@@ -72,7 +63,7 @@ for i,item in enumerate(reversed(st.session_state.history)):
         st.session_state.question_input = ""
         st.rerun()
 
-# ---------------- IMAGE QUESTION ANSWERING ----------------
+# ---------------- IMAGE UPLOAD ----------------
 
 uploaded_image = st.file_uploader("Upload an image", type=["png","jpg","jpeg"])
 
@@ -82,14 +73,12 @@ if uploaded_image:
 
     st.image(image, caption="Uploaded Image")
 
-    result = image_model(image)
-
-    caption = result[0]["generated_text"]
+    image_answer = "Image uploaded successfully."
 
     st.session_state.conversation.append(("User","Uploaded an image"))
-    st.session_state.conversation.append(("AI",caption))
+    st.session_state.conversation.append(("AI",image_answer))
 
-    st.success(f"Image Answer: {caption}")
+    st.success(image_answer)
 
 # ---------------- QUESTION INPUT ----------------
 
@@ -103,7 +92,6 @@ question = st.text_input(
 def solve_math(q):
 
     try:
-
         expr = re.findall(r'[0-9+\-*/().]+',q)
 
         if expr:
@@ -125,7 +113,7 @@ def get_wiki_answer(q):
 
             title = results[0]
 
-            summary = wikipedia.summary(title, sentences=3)
+            summary = wikipedia.summary(title, sentences=2)
 
             first_sentence = summary.split(".")[0]
 
@@ -157,7 +145,7 @@ if question:
 
     st.session_state.conversation.append(("AI",answer))
 
-    # ---------------- BETTER HALLUCINATION SCORE ----------------
+    # hallucination score
 
     if source and source!="Math Calculation":
 
