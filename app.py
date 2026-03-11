@@ -51,13 +51,13 @@ if st.sidebar.button("➕ New Chat"):
     st.session_state.question_input = ""
     st.rerun()
 
-# HISTORY
+# ---------------- HISTORY ----------------
 
 st.sidebar.markdown("### History")
 
 for i,item in enumerate(reversed(st.session_state.history)):
 
-    if st.sidebar.button(item["title"], key=f"history_{i}"):
+    if st.sidebar.button(item["title"], key=f"h{i}"):
 
         st.session_state.conversation = item["chat"]
         st.session_state.question_input = ""
@@ -73,12 +73,12 @@ if uploaded_image:
 
     st.image(image, caption="Uploaded Image")
 
-    image_answer = "Image uploaded successfully."
+    answer = "Image uploaded successfully. Image analysis feature can be extended using vision models."
 
     st.session_state.conversation.append(("User","Uploaded an image"))
-    st.session_state.conversation.append(("AI",image_answer))
+    st.session_state.conversation.append(("AI",answer))
 
-    st.success(image_answer)
+    st.success(answer)
 
 # ---------------- QUESTION INPUT ----------------
 
@@ -99,32 +99,57 @@ def solve_math(q):
             return f"The answer is {result}"
 
     except:
-        return None
+        pass
+
+    return None
+
+# ---------------- SPECIAL KNOWLEDGE ----------------
+
+def knowledge_answers(q):
+
+    q=q.lower()
+
+    if "capital of andhra pradesh" in q:
+        return "The capital of Andhra Pradesh is Amaravati."
+
+    if "prime minister of india" in q:
+        return "The Prime Minister of India is Narendra Modi."
+
+    if "who invented bulb" in q:
+        return "Thomas Edison is widely credited with inventing the practical electric light bulb."
+
+    if "ai projects" in q:
+        return """Some AI related project ideas are:
+
+1. AI Chatbot for Student Help
+2. Fake News Detection using NLP
+3. AI Based Disease Prediction System
+4. Smart Traffic Control using AI
+5. AI Resume Screening System
+6. Face Recognition Attendance System"""
+
+    return None
 
 # ---------------- WIKIPEDIA ANSWER ----------------
 
-def get_wiki_answer(q):
+def wiki_answer(q):
 
     try:
 
         results = wikipedia.search(q)
 
-        if results:
+        for r in results[:5]:
 
-            title = results[0]
+            page = wikipedia.page(r, auto_suggest=False)
 
-            summary = wikipedia.summary(title, sentences=2)
+            summary = wikipedia.summary(r, sentences=3)
 
-            first_sentence = summary.split(".")[0]
-
-            answer = f"{title} — {first_sentence}"
-
-            return answer, summary
+            return r, summary
 
     except:
         pass
 
-    return "Sorry, I couldn't find a reliable answer.", ""
+    return None,None
 
 # ---------------- PROCESS QUESTION ----------------
 
@@ -132,6 +157,10 @@ if question:
 
     st.session_state.conversation.append(("User",question))
 
+    answer = None
+    source = ""
+
+    # math
     math_answer = solve_math(question)
 
     if math_answer:
@@ -141,13 +170,31 @@ if question:
 
     else:
 
-        answer, source = get_wiki_answer(question)
+        # knowledge answers
+        k = knowledge_answers(question)
+
+        if k:
+            answer = k
+            source = "Knowledge Base"
+
+        else:
+
+            title,summary = wiki_answer(question)
+
+            if summary:
+
+                answer = summary.split(".")[0] + "."
+                source = summary
+
+            else:
+
+                answer = "Sorry, I couldn't find a reliable answer."
 
     st.session_state.conversation.append(("AI",answer))
 
     # hallucination score
 
-    if source and source!="Math Calculation":
+    if source and source not in ["Math Calculation","Knowledge Base"]:
 
         q_emb = embed_model.encode(question,convert_to_tensor=True)
         a_emb = embed_model.encode(answer,convert_to_tensor=True)
