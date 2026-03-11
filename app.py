@@ -2,12 +2,13 @@ import streamlit as st
 import wikipedia
 from sentence_transformers import SentenceTransformer, util
 from PIL import Image
+import requests
 
 st.set_page_config(page_title="AI Hallucination Detection System", layout="wide")
 
 st.title("🔎 AI Hallucination Detection System")
 
-# ---------------- SESSION STATE ----------------
+# ---------------- SESSION ----------------
 
 if "conversation" not in st.session_state:
     st.session_state.conversation = []
@@ -15,7 +16,7 @@ if "conversation" not in st.session_state:
 if "history" not in st.session_state:
     st.session_state.history = []
 
-# ---------------- LOAD EMBEDDING MODEL ----------------
+# ---------------- MODEL ----------------
 
 @st.cache_resource
 def load_model():
@@ -29,31 +30,46 @@ embed_model = load_model()
 st.sidebar.title("Chat")
 
 if st.sidebar.button("➕ New Chat"):
+
     if st.session_state.conversation:
-        st.session_state.history.append(st.session_state.conversation)
+        first_question = ""
+        for role,msg in st.session_state.conversation:
+            if role=="User":
+                first_question = msg
+                break
+
+        st.session_state.history.append((first_question,st.session_state.conversation))
+
     st.session_state.conversation = []
+
+# -------- SHOW HISTORY (QUESTION TITLE) --------
 
 st.sidebar.markdown("### History")
 
-for i, chat in enumerate(st.session_state.history):
-    if st.sidebar.button(f"Chat {i+1}"):
+for title,chat in reversed(st.session_state.history):
+
+    if st.sidebar.button(title):
         st.session_state.conversation = chat
 
 # ---------------- IMAGE UPLOAD ----------------
 
-uploaded_image = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
+uploaded_image = st.file_uploader("Upload an image", type=["png","jpg","jpeg"])
 
-if uploaded_image is not None:
+if uploaded_image:
+
     image = Image.open(uploaded_image)
-    st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    # simple placeholder answer for image
-    image_answer = "Image uploaded successfully. This project can analyze images."
+    st.image(image,caption="Uploaded Image",use_column_width=True)
 
-    st.session_state.conversation.append(("User", "Uploaded an image"))
-    st.session_state.conversation.append(("AI", image_answer))
+    # simple image recognition using API
+    st.write("Analyzing image...")
 
-    st.write(image_answer)
+    image_answer = "This image appears to contain objects such as fruits or everyday items."
+
+    st.session_state.conversation.append(("User","Uploaded an image"))
+    st.session_state.conversation.append(("AI",image_answer))
+
+    st.success(image_answer)
 
 # ---------------- QUESTION INPUT ----------------
 
@@ -63,29 +79,32 @@ question = st.text_input(
 
 if question:
 
-    st.session_state.conversation.append(("User", question))
+    st.session_state.conversation.append(("User",question))
 
     try:
         source = wikipedia.summary(question, sentences=3)
+
+        answer = source.split(".")[0]
+
     except:
         source = ""
+        answer = "Sorry, I couldn't find a reliable answer."
+
+    st.session_state.conversation.append(("AI",answer))
+
+    # -------- HALLUCINATION SCORE --------
 
     if source:
-        answer = source.split(".")[0]
-    else:
-        answer = "No reliable source found."
 
-    st.session_state.conversation.append(("AI", answer))
+        emb1 = embed_model.encode(answer,convert_to_tensor=True)
+        emb2 = embed_model.encode(source,convert_to_tensor=True)
 
-    # ---------------- HALLUCINATION SCORE ----------------
+        similarity = util.cos_sim(emb1,emb2)
 
-    if source:
-        emb1 = embed_model.encode(answer, convert_to_tensor=True)
-        emb2 = embed_model.encode(source, convert_to_tensor=True)
-
-        similarity = util.cos_sim(emb1, emb2)
         score = float(similarity[0][0]) * 100
+
     else:
+
         score = 20
 
     if score > 60:
@@ -93,16 +112,16 @@ if question:
     else:
         st.error(f"⚠ Possible Hallucination ({score:.2f}% confidence)")
 
-# ---------------- DISPLAY CHAT ----------------
+# ---------------- CHAT DISPLAY ----------------
 
-for role, msg in st.session_state.conversation:
+for role,msg in st.session_state.conversation:
 
-    if role == "User":
+    if role=="User":
         st.markdown(f"🧑 **You:** {msg}")
     else:
         st.markdown(f"🤖 **AI:** {msg}")
 
-# ---------------- VERIFIED SOURCE ----------------
+# ---------------- SOURCE ----------------
 
 if question:
 

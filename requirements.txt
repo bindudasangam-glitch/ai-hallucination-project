@@ -3,3 +3,4 @@ sentence-transformers
 wikipedia
 pillow
 torch
+requests
