@@ -3,8 +3,10 @@ import wikipedia
 import re
 from sentence_transformers import SentenceTransformer, util
 from PIL import Image
+from transformers import BlipProcessor, BlipForConditionalGeneration
+import torch
 
-st.set_page_config(page_title="AI Hallucination Detection System", layout="wide")
+st.set_page_config(page_title="AI Hallucination Detection", layout="wide")
 
 st.title("🔎 AI Hallucination Detection System")
 
@@ -16,16 +18,28 @@ if "conversation" not in st.session_state:
 if "history" not in st.session_state:
     st.session_state.history = []
 
-if "question_input" not in st.session_state:
-    st.session_state.question_input = ""
+if "image_caption" not in st.session_state:
+    st.session_state.image_caption = None
 
-# ---------------- MODEL ----------------
+# ---------------- MODELS ----------------
 
 @st.cache_resource
-def load_model():
-    return SentenceTransformer("all-MiniLM-L6-v2")
+def load_models():
 
-embed_model = load_model()
+    embed = SentenceTransformer("all-MiniLM-L6-v2")
+
+    processor = BlipProcessor.from_pretrained(
+        "Salesforce/blip-image-captioning-base"
+    )
+
+    model = BlipForConditionalGeneration.from_pretrained(
+        "Salesforce/blip-image-captioning-base"
+    )
+
+    return embed, processor, model
+
+
+embed_model, blip_processor, blip_model = load_models()
 
 # ---------------- SIDEBAR ----------------
 
@@ -35,95 +49,72 @@ if st.sidebar.button("➕ New Chat"):
 
     if st.session_state.conversation:
 
-        first_question = ""
+        first = ""
 
-        for role,msg in st.session_state.conversation:
-            if role == "User":
-                first_question = msg
+        for r,m in st.session_state.conversation:
+            if r=="User":
+                first=m
                 break
 
         st.session_state.history.append({
-            "title": first_question,
-            "chat": st.session_state.conversation
+            "title":first,
+            "chat":st.session_state.conversation
         })
 
-    st.session_state.conversation = []
-    st.session_state.question_input = ""
+    st.session_state.conversation=[]
+    st.session_state.image_caption=None
     st.rerun()
-
-# ---------------- HISTORY ----------------
 
 st.sidebar.markdown("### History")
 
 for i,item in enumerate(reversed(st.session_state.history)):
 
-    if st.sidebar.button(item["title"], key=f"h{i}"):
+    if st.sidebar.button(item["title"],key=i):
 
-        st.session_state.conversation = item["chat"]
-        st.session_state.question_input = ""
+        st.session_state.conversation=item["chat"]
         st.rerun()
 
-# ---------------- IMAGE ----------------
+# ---------------- IMAGE UPLOAD ----------------
 
-uploaded_image = st.file_uploader("Upload an image", type=["png","jpg","jpeg"])
+uploaded = st.file_uploader("Upload an image", type=["png","jpg","jpeg"])
 
-if uploaded_image:
+if uploaded:
 
-    image = Image.open(uploaded_image)
-    st.image(image, caption="Uploaded Image")
+    image = Image.open(uploaded).convert("RGB")
 
-    answer = "Image uploaded successfully. Image analysis can be added using computer vision models."
+    st.image(image)
 
-    st.session_state.conversation.append(("User","Uploaded an image"))
-    st.session_state.conversation.append(("AI",answer))
+    inputs = blip_processor(image, return_tensors="pt")
 
-    st.success(answer)
+    out = blip_model.generate(**inputs)
+
+    caption = blip_processor.decode(out[0], skip_special_tokens=True)
+
+    st.session_state.image_caption = caption
+
+    st.success(f"Image detected: {caption}")
 
 # ---------------- INPUT ----------------
 
-question = st.text_input(
-    "Ask a question (GK, Programming, Politics, Education, Science etc)",
-    key="question_input"
-)
+question = st.text_input("Ask a question")
 
 # ---------------- MATH ----------------
 
 def solve_math(q):
 
     try:
-        expr = re.findall(r'[0-9+\-*/().]+',q)
+
+        expr = re.findall(r"[0-9\+\-\*\/\(\)]+",q)
 
         if expr:
-            result = eval(expr[0])
-            return f"The answer is {result}"
+            return eval(expr[0])
 
     except:
         pass
 
     return None
 
-# ---------------- KNOWLEDGE BASE ----------------
-
-def basic_knowledge(q):
-
-    q = q.lower()
-
-    data = {
-        "capital of karnataka":"Bengaluru is the capital of Karnataka.",
-        "capital of andhra pradesh":"Amaravati is the capital of Andhra Pradesh.",
-        "prime minister of india":"The Prime Minister of India is Narendra Modi.",
-        "who invented bulb":"Thomas Edison is credited with inventing the practical electric light bulb.",
-        "what is java programming":"Java is a high level object oriented programming language developed by Sun Microsystems in 1995. It is widely used for building web applications, mobile apps and enterprise software.",
-        "what is artificial intelligence":"Artificial Intelligence is a field of computer science that enables machines to simulate human intelligence such as learning, reasoning and decision making."
-    }
-
-    for k in data:
-        if k in q:
-            return data[k]
-
-    return None
-
-# ---------------- WIKIPEDIA ----------------
+# ---------------- WIKI ----------------
 
 def wiki_answer(q):
 
@@ -131,20 +122,15 @@ def wiki_answer(q):
 
         results = wikipedia.search(q)
 
-        if not results:
-            return None,None
+        if results:
 
-        for title in results[:5]:
+            title = results[0]
 
-            try:
+            summary = wikipedia.summary(title, sentences=3)
 
-                summary = wikipedia.summary(title, sentences=3)
+            ans = summary.split(".")[0]+"."
 
-                if len(summary)>40:
-                    return title,summary
-
-            except:
-                continue
+            return ans, summary
 
     except:
         pass
@@ -157,58 +143,58 @@ if question:
 
     st.session_state.conversation.append(("User",question))
 
-    answer = None
-    source = ""
+    source=""
 
-    # math
-    math_answer = solve_math(question)
+    # IMAGE QUESTION
 
-    if math_answer:
+    if st.session_state.image_caption:
 
-        answer = math_answer
-        source = "Math Calculation"
+        combined_query = st.session_state.image_caption+" "+question
+
+        ans,source = wiki_answer(combined_query)
+
+        if not ans:
+            ans = f"The image likely shows {st.session_state.image_caption}"
 
     else:
 
-        # knowledge
-        k = basic_knowledge(question)
+        math = solve_math(question)
 
-        if k:
-            answer = k
-            source = "Knowledge Base"
+        if math is not None:
+
+            ans = f"The answer is {math}"
+            source = str(math)
 
         else:
 
-            title,summary = wiki_answer(question)
+            ans,source = wiki_answer(question)
 
-            if summary:
+            if not ans:
+                ans="Sorry, I couldn't find a reliable answer."
 
-                answer = summary.split(".")[0] + "."
-                source = summary
+    st.session_state.conversation.append(("AI",ans))
 
-            else:
+    # ---------------- HALLUCINATION ----------------
 
-                answer = "Sorry, I couldn't find a reliable answer."
-
-    st.session_state.conversation.append(("AI",answer))
-
-    # ---------------- HALLUCINATION SCORE ----------------
-
-    if source not in ["","Math Calculation","Knowledge Base"]:
+    if source:
 
         q_emb = embed_model.encode(question,convert_to_tensor=True)
-        a_emb = embed_model.encode(answer,convert_to_tensor=True)
+
+        a_emb = embed_model.encode(ans,convert_to_tensor=True)
+
         s_emb = embed_model.encode(source,convert_to_tensor=True)
 
         sim1 = util.cos_sim(q_emb,s_emb)
+
         sim2 = util.cos_sim(a_emb,s_emb)
 
-        score = float((sim1[0][0] + sim2[0][0]) / 2) * 100
+        score = float((sim1[0][0]+sim2[0][0])/2)*100
 
     else:
-        score = 100
 
-    if score > 60:
+        score = 20
+
+    if score>60:
         st.success(f"✔ Verified Answer ({score:.2f}% confidence)")
     else:
         st.error(f"⚠ Possible Hallucination ({score:.2f}% confidence)")
@@ -231,4 +217,4 @@ if question:
     if source:
         st.write(source)
     else:
-        st.write("No source available.")
+        st.write("No source available")
