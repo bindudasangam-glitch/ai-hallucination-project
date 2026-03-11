@@ -3,15 +3,12 @@ import wikipedia
 from transformers import pipeline
 from sentence_transformers import SentenceTransformer, util
 from PIL import Image
-import torch
 
 st.set_page_config(page_title="AI Hallucination Detection System", layout="wide")
 
 st.title("🔎 AI Hallucination Detection System")
 
-# -------------------------------
-# SESSION STATE
-# -------------------------------
+# ---------------- SESSION STATE ----------------
 
 if "conversation" not in st.session_state:
     st.session_state.conversation = []
@@ -19,16 +16,14 @@ if "conversation" not in st.session_state:
 if "history" not in st.session_state:
     st.session_state.history = []
 
-# -------------------------------
-# LOAD MODELS
-# -------------------------------
+# ---------------- LOAD MODELS ----------------
 
 @st.cache_resource
 def load_models():
 
-    generator = pipeline(
-        "text2text-generation",
-        model="google/flan-t5-base"
+    qa_model = pipeline(
+        "question-answering",
+        model="deepset/roberta-base-squad2"
     )
 
     embed_model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -38,14 +33,12 @@ def load_models():
         model="Salesforce/blip-image-captioning-base"
     )
 
-    return generator, embed_model, image_model
+    return qa_model, embed_model, image_model
 
 
-generator, embed_model, image_model = load_models()
+qa_model, embed_model, image_model = load_models()
 
-# -------------------------------
-# SIDEBAR
-# -------------------------------
+# ---------------- SIDEBAR ----------------
 
 st.sidebar.title("Chat")
 
@@ -64,43 +57,31 @@ for i, chat in enumerate(st.session_state.history):
 
         st.session_state.conversation = chat
 
-
-# -------------------------------
-# QUESTION INPUT
-# -------------------------------
-
-question = st.text_input(
-    "Ask a question (Politics, History, GK, Medical, Agriculture, Programming etc)"
-)
-
-# -------------------------------
-# IMAGE UPLOAD
-# -------------------------------
+# ---------------- IMAGE UPLOAD ----------------
 
 uploaded_image = st.file_uploader("Upload an image", type=["png","jpg","jpeg"])
-
-# -------------------------------
-# IMAGE QUESTION
-# -------------------------------
 
 if uploaded_image is not None:
 
     image = Image.open(uploaded_image)
 
-    st.image(image, caption="Uploaded Image")
+    st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    caption = image_model(image)[0]["generated_text"]
+    result = image_model(image)
 
-    st.subheader("Image Description")
+    caption = result[0]["generated_text"]
+
+    st.session_state.conversation.append(("User", "Uploaded an image"))
+    st.session_state.conversation.append(("AI", caption))
+
+    st.subheader("Image Answer")
     st.write(caption)
 
-    st.session_state.conversation.append(("User","Image uploaded"))
-    st.session_state.conversation.append(("AI",caption))
+# ---------------- QUESTION INPUT ----------------
 
-
-# -------------------------------
-# TEXT QUESTION
-# -------------------------------
+question = st.text_input(
+    "Ask a question (Politics, History, GK, Medical, Agriculture, Programming etc)"
+)
 
 if question:
 
@@ -111,17 +92,21 @@ if question:
     except:
         source = ""
 
-    prompt = f"Answer this question clearly: {question}"
+    if source:
 
-    result = generator(prompt, max_length=120)
+        result = qa_model(
+            question=question,
+            context=source
+        )
 
-    answer = result[0]["generated_text"]
+        answer = result["answer"]
+
+    else:
+        answer = "No reliable source found."
 
     st.session_state.conversation.append(("AI", answer))
 
-    # -------------------------------
-    # HALLUCINATION SCORE
-    # -------------------------------
+    # ---------------- HALLUCINATION SCORE ----------------
 
     if source:
 
@@ -143,9 +128,7 @@ if question:
 
         st.error(f"⚠ Possible Hallucination ({score:.2f}% confidence)")
 
-# -------------------------------
-# SHOW CHAT
-# -------------------------------
+# ---------------- DISPLAY CHAT ----------------
 
 for role, msg in st.session_state.conversation:
 
@@ -155,18 +138,13 @@ for role, msg in st.session_state.conversation:
     else:
         st.markdown(f"🤖 **AI:** {msg}")
 
-# -------------------------------
-# VERIFIED SOURCE
-# -------------------------------
+# ---------------- VERIFIED SOURCE ----------------
 
 if question:
 
     st.subheader("Verified Source")
 
     if source:
-
         st.write(source)
-
     else:
-
         st.write("No verified source found.")
