@@ -2,13 +2,12 @@ import streamlit as st
 import wikipedia
 from sentence_transformers import SentenceTransformer, util
 from PIL import Image
-import requests
 
 st.set_page_config(page_title="AI Hallucination Detection System", layout="wide")
 
 st.title("🔎 AI Hallucination Detection System")
 
-# ---------------- SESSION ----------------
+# ---------------- SESSION STATE ----------------
 
 if "conversation" not in st.session_state:
     st.session_state.conversation = []
@@ -20,8 +19,7 @@ if "history" not in st.session_state:
 
 @st.cache_resource
 def load_model():
-    model = SentenceTransformer("all-MiniLM-L6-v2")
-    return model
+    return SentenceTransformer("all-MiniLM-L6-v2")
 
 embed_model = load_model()
 
@@ -29,27 +27,37 @@ embed_model = load_model()
 
 st.sidebar.title("Chat")
 
-if st.sidebar.button("➕ New Chat"):
+# NEW CHAT
+if st.sidebar.button("➕ New Chat", key="new_chat"):
 
     if st.session_state.conversation:
+
         first_question = ""
-        for role,msg in st.session_state.conversation:
-            if role=="User":
+        for role, msg in st.session_state.conversation:
+            if role == "User":
                 first_question = msg
                 break
 
-        st.session_state.history.append((first_question,st.session_state.conversation))
+        st.session_state.history.append({
+            "title": first_question,
+            "chat": st.session_state.conversation
+        })
 
     st.session_state.conversation = []
+    st.rerun()
 
-# -------- SHOW HISTORY (QUESTION TITLE) --------
+# ---------------- HISTORY ----------------
 
 st.sidebar.markdown("### History")
 
-for title,chat in reversed(st.session_state.history):
+for i, item in enumerate(reversed(st.session_state.history)):
 
-    if st.sidebar.button(title):
-        st.session_state.conversation = chat
+    title = item["title"]
+
+    if st.sidebar.button(title, key=f"history_{i}"):
+
+        st.session_state.conversation = item["chat"]
+        st.rerun()
 
 # ---------------- IMAGE UPLOAD ----------------
 
@@ -59,10 +67,7 @@ if uploaded_image:
 
     image = Image.open(uploaded_image)
 
-    st.image(image,caption="Uploaded Image",use_column_width=True)
-
-    # simple image recognition using API
-    st.write("Analyzing image...")
+    st.image(image, caption="Uploaded Image", use_column_width=True)
 
     image_answer = "This image appears to contain objects such as fruits or everyday items."
 
@@ -74,7 +79,8 @@ if uploaded_image:
 # ---------------- QUESTION INPUT ----------------
 
 question = st.text_input(
-    "Ask a question (Politics, History, GK, Medical, Agriculture, Programming etc)"
+    "Ask a question (Politics, History, GK, Medical, Agriculture, Programming etc)",
+    key="question_input"
 )
 
 if question:
@@ -83,7 +89,6 @@ if question:
 
     try:
         source = wikipedia.summary(question, sentences=3)
-
         answer = source.split(".")[0]
 
     except:
@@ -92,19 +97,18 @@ if question:
 
     st.session_state.conversation.append(("AI",answer))
 
-    # -------- HALLUCINATION SCORE --------
+    # HALLUCINATION SCORE
 
     if source:
 
-        emb1 = embed_model.encode(answer,convert_to_tensor=True)
-        emb2 = embed_model.encode(source,convert_to_tensor=True)
+        emb1 = embed_model.encode(answer, convert_to_tensor=True)
+        emb2 = embed_model.encode(source, convert_to_tensor=True)
 
-        similarity = util.cos_sim(emb1,emb2)
+        similarity = util.cos_sim(emb1, emb2)
 
         score = float(similarity[0][0]) * 100
 
     else:
-
         score = 20
 
     if score > 60:
@@ -114,9 +118,9 @@ if question:
 
 # ---------------- CHAT DISPLAY ----------------
 
-for role,msg in st.session_state.conversation:
+for role, msg in st.session_state.conversation:
 
-    if role=="User":
+    if role == "User":
         st.markdown(f"🧑 **You:** {msg}")
     else:
         st.markdown(f"🤖 **AI:** {msg}")
@@ -127,7 +131,7 @@ if question:
 
     st.subheader("Verified Source")
 
-    if source:
+    try:
         st.write(source)
-    else:
+    except:
         st.write("No verified source found.")
