@@ -21,9 +21,10 @@ if "history" not in st.session_state:
 @st.cache_resource
 def load_models():
 
-    qa_model = pipeline(
-        "question-answering",
-        model="deepset/roberta-base-squad2"
+    # Stable model that works on Streamlit Cloud
+    generator = pipeline(
+        "text-generation",
+        model="gpt2"
     )
 
     embed_model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -33,10 +34,10 @@ def load_models():
         model="Salesforce/blip-image-captioning-base"
     )
 
-    return qa_model, embed_model, image_model
+    return generator, embed_model, image_model
 
 
-qa_model, embed_model, image_model = load_models()
+generator, embed_model, image_model = load_models()
 
 # ---------------- SIDEBAR ----------------
 
@@ -61,7 +62,7 @@ for i, chat in enumerate(st.session_state.history):
 
 uploaded_image = st.file_uploader("Upload an image", type=["png","jpg","jpeg"])
 
-if uploaded_image is not None:
+if uploaded_image:
 
     image = Image.open(uploaded_image)
 
@@ -71,8 +72,8 @@ if uploaded_image is not None:
 
     caption = result[0]["generated_text"]
 
-    st.session_state.conversation.append(("User", "Uploaded an image"))
-    st.session_state.conversation.append(("AI", caption))
+    st.session_state.conversation.append(("User","Uploaded Image"))
+    st.session_state.conversation.append(("AI",caption))
 
     st.subheader("Image Answer")
     st.write(caption)
@@ -85,26 +86,20 @@ question = st.text_input(
 
 if question:
 
-    st.session_state.conversation.append(("User", question))
+    st.session_state.conversation.append(("User",question))
 
     try:
         source = wikipedia.summary(question, sentences=3)
     except:
         source = ""
 
-    if source:
+    prompt = f"Question: {question}\nAnswer:"
 
-        result = qa_model(
-            question=question,
-            context=source
-        )
+    result = generator(prompt, max_length=120)
 
-        answer = result["answer"]
+    answer = result[0]["generated_text"].replace(prompt,"")
 
-    else:
-        answer = "No reliable source found."
-
-    st.session_state.conversation.append(("AI", answer))
+    st.session_state.conversation.append(("AI",answer))
 
     # ---------------- HALLUCINATION SCORE ----------------
 
@@ -121,20 +116,16 @@ if question:
         score = 20
 
     if score > 60:
-
         st.success(f"✔ Verified Answer ({score:.2f}% confidence)")
-
     else:
-
         st.error(f"⚠ Possible Hallucination ({score:.2f}% confidence)")
 
 # ---------------- DISPLAY CHAT ----------------
 
-for role, msg in st.session_state.conversation:
+for role,msg in st.session_state.conversation:
 
-    if role == "User":
+    if role=="User":
         st.markdown(f"🧑 **You:** {msg}")
-
     else:
         st.markdown(f"🤖 **AI:** {msg}")
 
