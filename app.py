@@ -2,6 +2,8 @@ import streamlit as st
 import wikipedia
 import re
 from sentence_transformers import SentenceTransformer, util
+from transformers import pipeline
+from PIL import Image
 
 st.set_page_config(page_title="AI Hallucination Detection System", layout="wide")
 
@@ -18,19 +20,26 @@ if "history" not in st.session_state:
 if "question_input" not in st.session_state:
     st.session_state.question_input = ""
 
-# ---------------- MODEL ----------------
+# ---------------- MODELS ----------------
 
 @st.cache_resource
-def load_model():
-    return SentenceTransformer("all-MiniLM-L6-v2")
+def load_models():
 
-embed_model = load_model()
+    embed_model = SentenceTransformer("all-MiniLM-L6-v2")
+
+    image_model = pipeline(
+        "image-to-text",
+        model="Salesforce/blip-image-captioning-base"
+    )
+
+    return embed_model, image_model
+
+embed_model, image_model = load_models()
 
 # ---------------- SIDEBAR ----------------
 
 st.sidebar.title("Chat")
 
-# NEW CHAT
 if st.sidebar.button("➕ New Chat"):
 
     if st.session_state.conversation:
@@ -62,6 +71,25 @@ for i,item in enumerate(reversed(st.session_state.history)):
         st.session_state.conversation = item["chat"]
         st.session_state.question_input = ""
         st.rerun()
+
+# ---------------- IMAGE QUESTION ANSWERING ----------------
+
+uploaded_image = st.file_uploader("Upload an image", type=["png","jpg","jpeg"])
+
+if uploaded_image:
+
+    image = Image.open(uploaded_image)
+
+    st.image(image, caption="Uploaded Image")
+
+    result = image_model(image)
+
+    caption = result[0]["generated_text"]
+
+    st.session_state.conversation.append(("User","Uploaded an image"))
+    st.session_state.conversation.append(("AI",caption))
+
+    st.success(f"Image Answer: {caption}")
 
 # ---------------- QUESTION INPUT ----------------
 
@@ -97,7 +125,7 @@ def get_wiki_answer(q):
 
             title = results[0]
 
-            summary = wikipedia.summary(title, sentences=2)
+            summary = wikipedia.summary(title, sentences=3)
 
             first_sentence = summary.split(".")[0]
 
@@ -116,7 +144,6 @@ if question:
 
     st.session_state.conversation.append(("User",question))
 
-    # check math
     math_answer = solve_math(question)
 
     if math_answer:
@@ -130,16 +157,18 @@ if question:
 
     st.session_state.conversation.append(("AI",answer))
 
-    # hallucination score
+    # ---------------- BETTER HALLUCINATION SCORE ----------------
 
     if source and source!="Math Calculation":
 
-        emb1 = embed_model.encode(answer,convert_to_tensor=True)
-        emb2 = embed_model.encode(source,convert_to_tensor=True)
+        q_emb = embed_model.encode(question,convert_to_tensor=True)
+        a_emb = embed_model.encode(answer,convert_to_tensor=True)
+        s_emb = embed_model.encode(source,convert_to_tensor=True)
 
-        similarity = util.cos_sim(emb1,emb2)
+        q_score = util.cos_sim(q_emb,s_emb)
+        a_score = util.cos_sim(a_emb,s_emb)
 
-        score = float(similarity[0][0])*100
+        score = float((q_score[0][0] + a_score[0][0]) / 2) * 100
 
     else:
         score = 100
