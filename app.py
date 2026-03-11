@@ -51,15 +51,13 @@ if st.sidebar.button("➕ New Chat"):
     st.session_state.question_input = ""
     st.rerun()
 
-# ---------------- HISTORY ----------------
+# HISTORY
 
 st.sidebar.markdown("### History")
 
 for i,item in enumerate(reversed(st.session_state.history)):
 
-    title = item["title"]
-
-    if st.sidebar.button(title,key=f"history_{i}"):
+    if st.sidebar.button(item["title"], key=f"history_{i}"):
 
         st.session_state.conversation = item["chat"]
         st.session_state.question_input = ""
@@ -72,13 +70,13 @@ question = st.text_input(
     key="question_input"
 )
 
-# ---------------- ANSWER SYSTEM ----------------
+# ---------------- MATH SOLVER ----------------
 
-def solve_math(question):
+def solve_math(q):
 
     try:
 
-        expr = re.findall(r'[0-9+\-*/().]+',question)
+        expr = re.findall(r'[0-9+\-*/().]+',q)
 
         if expr:
             result = eval(expr[0])
@@ -87,23 +85,28 @@ def solve_math(question):
     except:
         return None
 
+# ---------------- WIKIPEDIA ANSWER ----------------
 
-def get_answer(question):
+def get_wiki_answer(q):
 
-    # 1️⃣ Try math
-    math_answer = solve_math(question)
-
-    if math_answer:
-        return math_answer,"Math calculation"
-
-    # 2️⃣ Try Wikipedia
     try:
-        source = wikipedia.summary(question, sentences=3)
-        answer = source.split(".")[0]
-        return answer,source
+
+        search_results = wikipedia.search(q)
+
+        if search_results:
+
+            page = wikipedia.page(search_results[0])
+
+            summary = wikipedia.summary(search_results[0], sentences=3)
+
+            answer = summary.split(".")[0]
+
+            return answer, summary
 
     except:
-        return "Sorry, I couldn't find a reliable answer.",""
+        pass
+
+    return "Sorry, I couldn't find a reliable answer.", ""
 
 # ---------------- PROCESS QUESTION ----------------
 
@@ -111,13 +114,23 @@ if question:
 
     st.session_state.conversation.append(("User",question))
 
-    answer,source = get_answer(question)
+    # math check
+    math_answer = solve_math(question)
+
+    if math_answer:
+
+        answer = math_answer
+        source = "Math Calculation"
+
+    else:
+
+        answer, source = get_wiki_answer(question)
 
     st.session_state.conversation.append(("AI",answer))
 
     # hallucination score
 
-    if source:
+    if source and source!="Math Calculation":
 
         emb1 = embed_model.encode(answer,convert_to_tensor=True)
         emb2 = embed_model.encode(source,convert_to_tensor=True)
