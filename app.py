@@ -7,20 +7,18 @@ st.set_page_config(page_title="AI Hallucination Detection System", layout="wide"
 
 st.title("🔎 AI Hallucination Detection System")
 
-# -------------------------
-# Session State
-# -------------------------
+# -----------------------------
+# SESSION STATES
+# -----------------------------
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
-if "history" not in st.session_state:
-    st.session_state.history = []
+if "conversation" not in st.session_state:
+    st.session_state.conversation = []
 
-if "current_question" not in st.session_state:
-    st.session_state.current_question = ""
-
-# -------------------------
-# Load Models
-# -------------------------
-
+# -----------------------------
+# LOAD MODELS
+# -----------------------------
 @st.cache_resource
 def load_models():
 
@@ -36,67 +34,61 @@ def load_models():
 
 generator, embed_model = load_models()
 
-# -------------------------
-# Sidebar
-# -------------------------
-
+# -----------------------------
+# SIDEBAR
+# -----------------------------
 st.sidebar.title("Chat")
 
+# NEW CHAT
 if st.sidebar.button("➕ New Chat"):
-    st.session_state.current_question = ""
+    st.session_state.conversation = []
 
 st.sidebar.markdown("### History")
 
-for q in st.session_state.history:
+for chat in st.session_state.chat_history:
+    if st.sidebar.button(chat):
+        st.session_state.conversation.append(("User", chat))
 
-    if st.sidebar.button(q):
-        st.session_state.current_question = q
-
-
-# -------------------------
-# Input Question
-# -------------------------
-
+# -----------------------------
+# USER INPUT
+# -----------------------------
 question = st.text_input(
-    "Ask a question (Politics, History, GK, Medical, Agriculture, Programming etc)",
-    value=st.session_state.current_question
+    "Ask a question (Politics, History, GK, Medical, Agriculture, Programming etc)"
 )
 
 if question:
 
-    st.session_state.current_question = question
+    # store conversation
+    st.session_state.conversation.append(("User", question))
+    st.session_state.chat_history.insert(0, question)
 
-    if question not in st.session_state.history:
-        st.session_state.history.insert(0, question)
-
-    # -------------------------
-    # Wikipedia Source
-    # -------------------------
-
+    # -----------------------------
+    # WIKIPEDIA SOURCE
+    # -----------------------------
     try:
         source = wikipedia.summary(question, sentences=3)
     except:
         source = ""
 
-    # -------------------------
-    # Generate Answer
-    # -------------------------
-
-    prompt = f"Answer clearly: {question}"
+    # -----------------------------
+    # GENERATE ANSWER
+    # -----------------------------
+    prompt = f"Question: {question}\nAnswer:"
 
     result = generator(prompt, max_length=120)
 
-    raw_answer = result[0]["generated_text"]
+    raw = result[0]["generated_text"]
 
-    answer = raw_answer.replace(prompt, "").strip()
+    answer = raw.replace(prompt, "").strip()
 
     if answer == "":
-        answer = "No answer generated."
+        answer = "I could not generate an answer."
 
-    # -------------------------
-    # Hallucination Score
-    # -------------------------
+    st.session_state.conversation.append(("AI", answer))
 
+    # -----------------------------
+    # HALLUCINATION SCORE
+    # -----------------------------
     if source:
 
         emb1 = embed_model.encode(answer, convert_to_tensor=True)
@@ -109,25 +101,28 @@ if question:
     else:
         score = 20
 
-    # -------------------------
-    # Result
-    # -------------------------
-
+    # -----------------------------
+    # SHOW RESULT
+    # -----------------------------
     if score > 60:
         st.success(f"✔ Verified Answer ({score:.2f}% confidence)")
     else:
         st.error(f"⚠ Possible Hallucination ({score:.2f}% confidence)")
 
-    # -------------------------
-    # Answer
-    # -------------------------
+# -----------------------------
+# DISPLAY CHAT
+# -----------------------------
+for role, msg in st.session_state.conversation:
 
-    st.subheader("Answer")
-    st.write(answer)
+    if role == "User":
+        st.markdown(f"**🧑 You:** {msg}")
+    else:
+        st.markdown(f"**🤖 AI:** {msg}")
 
-    # -------------------------
-    # Source
-    # -------------------------
+# -----------------------------
+# SOURCE
+# -----------------------------
+if question:
 
     st.subheader("Verified Source")
 
